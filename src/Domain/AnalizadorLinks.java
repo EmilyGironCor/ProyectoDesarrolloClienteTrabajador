@@ -4,40 +4,52 @@
  */
 package Domain;
 
-import java.util.ArrayList;
-import java.util.List;
-import org.w3c.dom.Document;
+import org.jsoup.nodes.Element;
+import org.jsoup.select.Elements;
 
-/**
- *
- * @author saray
- */
-public class AnalizadorLinks {
-    private Document document;
-    private int totalLinks;
-    private List<String> listaLinks;
 
-    public AnalizadorLinks(Document document) {
-        this.document = document;
-        this.listaLinks = new ArrayList<>();
-        this.totalLinks = totalLinks;
+public class AnalizadorLinks extends AnalizadorWeb {
+private int cantidadDeLinks;
+    public AnalizadorLinks(String url) {
+        super(url); 
+    }
+
+    public int getCantidadDeLinks() {
+        return cantidadDeLinks;
+    }
+
+    public void setCantidadDeLinks(int cantidadDeLinks) {
+        this.cantidadDeLinks = cantidadDeLinks;
     }
     
-    public void analizar(){
-    }
-    
-    public int getTotalLinks(){
-        return totalLinks;
+
+    @Override
+    public void analizar() {
+        if (this.documento == null) {
+        System.out.println("Error: No hay conexión establecida para los links.");
+        return;
     }
 
-    public List<String> getListaLinks() {
-        return listaLinks;
+    System.out.println("ENLACES");
+
+    Elements links = this.documento.select("a[href]");
+
+    cantidadDeLinks = links.size();
+
+    System.out.println("Cantidad de links encontrados: "
+            + cantidadDeLinks);
+
+    for (Element link : links) {
+        String texto = link.text().trim();
+        String urlDestino = link.attr("abs:href");
+
+        System.out.println("URL: " + urlDestino);
+    }
+
     }
 
     @Override
-    public String toString() {
-        return "AnalizadorLinks{" + "document=" + document + ", totalLinks=" + totalLinks + ", listaLinks=" + listaLinks + '}';
+    public void run() {
+        this.analizar();
     }
-    
-    
 }

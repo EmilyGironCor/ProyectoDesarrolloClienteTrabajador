@@ -4,38 +4,44 @@
  */
 package Domain;
 
-import java.util.ArrayList;
-import java.util.List;
-import org.w3c.dom.Document;
+import org.jsoup.nodes.Element;
+import org.jsoup.select.Elements;
 
-/**
- *
- * @author saray
- */
-public class AnalizadorImagenes {
-    private Document document;
-    private int totalImagenes;
-    private List<String> listaImagenes;
 
-    public AnalizadorImagenes(Document document) {
-        this.document = document;
-        this.listaImagenes = new ArrayList<>();
-    }
-    
-    public void analizar(){
+public class AnalizadorImagenes extends AnalizadorWeb {
+
+    private int cantidadDeImagenes;
+
+    public AnalizadorImagenes(String url) {
+        super(url);
     }
 
-    public int getTotalImagenes() {
-        return totalImagenes;
-    }
-
-    public List<String> getListaImagenes() {
-        return listaImagenes;
+    public int getCantidadDeImagenes() {
+        return cantidadDeImagenes;
     }
 
     @Override
-    public String toString() {
-        return "AnalizadorImagenes{" + "document=" + document + ", totalImagenes=" + totalImagenes + ", listaImagenes=" + listaImagenes + '}';
+    public void analizar() {
+        if (this.documento == null) {
+            System.out.println("Error: No hay conexión establecida para las imágenes.");
+            return;
+        }
+
+        Elements imagenes = this.documento.select("img");
+
+        cantidadDeImagenes = imagenes.size();
+
+        System.out.println("Cantidad de imágenes encontradas: " + cantidadDeImagenes);
+
+        for (Element img : imagenes) {
+            String urlImagen = img.attr("abs:src");
+            String textoAlternativo = img.attr("alt");
+            System.out.println("Imagen: " + urlImagen + " Texto: " + textoAlternativo);
+        }
     }
-      
+
+    @Override
+    public void run() {
+        this.analizar();
+    }
 }

@@ -4,43 +4,32 @@
  */
 package Domain;
 
-import org.w3c.dom.Document;
 
-/**
- *
- * @author saray
- */
-public class AnalizadorWeb {
-    private String URL;
-    private Tarea tarea;
-    private Document document;
-    private ResultadoAnalisis resultado;
-    private boolean conectado;
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
+import java.io.IOException;
 
-    public AnalizadorWeb(String URL, Tarea tarea) {
-        this.URL = URL;
-        this.tarea = tarea;
+
+public abstract class AnalizadorWeb extends Thread{ 
+    protected String url; 
+    protected Document documento;
+
+    // Constructor
+    public AnalizadorWeb(String url) {
+        this.url = url;
     }
+
+  
+    public void conectar() throws IOException {
+        this.documento = Jsoup.connect(this.url).get();
+    }
+
+
+    protected abstract void analizar(); 
+    public abstract void run();
+
+    // Getters y Setters
+    public String getUrl() { return url; }
+    public void setUrl(String url) { this.url = url; }
     
-    public ResultadoAnalisis analizar(){
-        return resultado;
-    }
-    
-    public void cargarPagina(){
-        
-    }
-
-    public Document getDocument() {
-        return document;
-    }
-
-    public ResultadoAnalisis getResultado() {
-        return resultado;
-    }
-
-    @Override
-    public String toString() {
-        return "AnalizadorWeb{" + "URL=" + URL + ", tarea=" + tarea + ", document=" + document + ", resultado=" + resultado + ", conectado=" + conectado + '}';
-    }
-       
 }
