@@ -11,31 +11,26 @@ import org.jdom.Element;
  *
  * @author saray
  */
-public class AnalisisTarea implements XMLConvertible{
+public class AnalisisTarea implements XMLConvertible {
+
     private int idTarea;
     private String URL;
     private String estado;
     private int usuarioCreador;
     private int prioridad;
-    private Date fechaDeCreacion;
-    private int cantidadHilos;
 
-    public AnalisisTarea(int idTarea, String URL, String estado, int usuarioCreador, int prioridad, Date fechaDeCreacion, int cantidadHilos) {
+    public AnalisisTarea(int idTarea, String URL, String estado, int usuarioCreador, int prioridad) {
         this.idTarea = idTarea;
         this.URL = URL;
         this.estado = estado;
         this.usuarioCreador = usuarioCreador;
         this.prioridad = prioridad;
-        this.fechaDeCreacion = fechaDeCreacion;
-        this.cantidadHilos = cantidadHilos;
     }//constructor
 
     public AnalisisTarea() {
         this.URL = "";
     }
 
-    
-    
     //Set y get
     public int getIdTarea() {
         return idTarea;
@@ -77,38 +72,27 @@ public class AnalisisTarea implements XMLConvertible{
         this.prioridad = prioridad;
     }
 
-    public Date getFechaDeCreacion() {
-        return fechaDeCreacion;
-    }
-
-    public void setFechaDeCreacion(Date fechaDeCreacion) {
-        this.fechaDeCreacion = fechaDeCreacion;
-    }
-
-    public int getCantidadHilos() {
-        return cantidadHilos;
-    }
-
-    public void setCantidadHilos(int cantidadHilos) {
-        this.cantidadHilos = cantidadHilos;
-    }
-
     @Override
     public String toString() {
-        return "Tarea{" + "idTarea=" + idTarea + ", URL=" + URL + ", estado=" + estado + ", usuarioCreador=" + usuarioCreador + ", prioridad=" + prioridad + ", fechaDeCreacion=" + fechaDeCreacion + ", cantidadHilos=" + cantidadHilos + '}';
+        return "Tarea{" + "idTarea=" + idTarea + ", URL=" + URL + ", estado=" + estado + ", usuarioCreador=" + usuarioCreador + ", prioridad=" + prioridad + '}';
     }
 
     @Override
     public Element toXMLElement() {
-        Element eAnalisis = new Element("analisis"); 
-        Element eURL =  new Element("url");
+        Element eAnalisis = new Element("analisis");
+        Element eURL = new Element("url");
         eURL.addContent(this.URL);
         eAnalisis.addContent(eURL);
-        return eAnalisis; 
+        return eAnalisis;
     }
 
     @Override
     public void toObject(Element element) {
+      
+        if (element.getChild("idTarea") != null) {
+            this.idTarea = Integer.parseInt(element.getChild("idTarea").getValue());
+        }
+    
         if (element.getChild("URL") != null) {
             this.URL = element.getChild("URL").getValue();
         } else if (element.getChild("url") != null) {
@@ -118,6 +102,5 @@ public class AnalisisTarea implements XMLConvertible{
             this.URL = "";
         }
     }
-    
-    
+
 }

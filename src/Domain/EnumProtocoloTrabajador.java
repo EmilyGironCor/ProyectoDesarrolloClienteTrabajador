@@ -4,6 +4,7 @@
  */
 package Domain;
 
+import Utility.GestionXML;
 import org.jdom.Element;
 
 /**
@@ -11,93 +12,66 @@ import org.jdom.Element;
  * @author saray
  */
 public enum EnumProtocoloTrabajador {
-ANALIZARURL {
-    @Override
-    public void accion(Cliente cliente, Element eDatos) {
+    ANALIZARURL {
+        @Override
+        public void accion(Cliente cliente, Element eDatos) {
+            Element eTarea = eDatos.getChild("tarea");
+            if (eTarea == null) {
+                System.out.println("No llegó ninguna tarea para analizar");
+                return;
+            }
 
-        Element eTarea = eDatos.getChild("tarea");
+            AnalisisTarea tarea = new AnalisisTarea();
+            tarea.toObject(eTarea);
+            String urlObjetivo = tarea.getURL();
+            int idTarea = tarea.getIdTarea(); // ✅ necesitas el id para guardar
 
-        if (eTarea == null) {
-            System.out.println("No llegó ninguna tarea para analizar");
-            return;
+            System.out.println("URL recibida para analizar: " + urlObjetivo);
+
+            AnalizadorLinks buscadorDeLinks = new AnalizadorLinks(urlObjetivo);
+            AnalizadorImagenes buscadorDeImagenes = new AnalizadorImagenes(urlObjetivo);
+            AnalizarVideo buscadorDeVideos = new AnalizarVideo(urlObjetivo);
+
+            try {
+                buscadorDeLinks.conectar();
+                buscadorDeImagenes.conectar();
+                buscadorDeVideos.conectar();
+
+                buscadorDeLinks.start();
+                buscadorDeImagenes.start();
+                buscadorDeVideos.start();
+
+                buscadorDeLinks.join();
+                buscadorDeImagenes.join();
+                buscadorDeVideos.join();
+
+                int links = buscadorDeLinks.getCantidadDeLinks();
+                int imagenes = buscadorDeImagenes.getCantidadDeImagenes();
+                int videos = buscadorDeVideos.getCantidadDeVideos();
+
+                System.out.println("Links: " + links + " | Imágenes: " + imagenes + " | Videos: " + videos);
+
+                // ✅ Construir XML con resultados y enviarlo al servidor
+                Element eDato = new Element("resultado");
+                eDato.addContent(new Element("idTarea").setText(String.valueOf(idTarea)));
+                eDato.addContent(new Element("totalEnlaces").setText(String.valueOf(links)));
+                eDato.addContent(new Element("totalImagenes").setText(String.valueOf(imagenes)));
+                eDato.addContent(new Element("totalVideos").setText(String.valueOf(videos)));
+                eDato.addContent(new Element("totalProductos").setText("0"));
+
+                DataProtocolo protocolo = new DataProtocolo("GUARDAR_RESULTADO", eDato);
+                String xml = GestionXML.xmlToSTring(protocolo.geteAccion());
+                cliente.enviarDatos(xml); // ✅ solo un String
+
+            } catch (Exception e) {
+                System.err.println("Error durante el escaneo: " + e.getMessage());
+            }
         }
-
-        AnalisisTarea tarea = new AnalisisTarea();
-        tarea.toObject(eTarea);
-
-        String urlObjetivo = tarea.getURL();
-
-        System.out.println("URL recibida para analizar: " + urlObjetivo);
-
-        AnalizadorLinks buscadorDeLinks =
-                new AnalizadorLinks(urlObjetivo);
-
-        AnalizadorImagenes buscadorDeImagenes =
-                new AnalizadorImagenes(urlObjetivo);
-
-        AnalizarVideo buscadorDeVideos =
-                new AnalizarVideo(urlObjetivo);
-
-        try {
-            System.out.println("Iniciando análisis modular en: " + urlObjetivo);
-
-            buscadorDeLinks.conectar();
-            buscadorDeImagenes.conectar();
-            buscadorDeVideos.conectar();
-
-            buscadorDeLinks.start();
-            buscadorDeImagenes.start();
-            buscadorDeVideos.start();
-
-            buscadorDeLinks.join();
-            buscadorDeImagenes.join();
-            buscadorDeVideos.join();
-
-            System.out.println("Links encontrados: "
-                    + buscadorDeLinks.getCantidadDeLinks());
-
-            System.out.println("Imágenes encontradas: "
-                    + buscadorDeImagenes.getCantidadDeImagenes());
-
-            System.out.println("Videos encontrados: "
-                    + buscadorDeVideos.getCantidadDeVideos());
-
-        } catch (Exception e) {
-            System.err.println("Ocurrió un error durante el escaneo: "
-                    + e.getMessage());
-        }
-    }
-},
-//    ANALIZAR_IMAGENES {
-//        
-//        @Override
-//        public void accion(Cliente cliente, Element eDato) {
-//            String url = eDato.getChild("url").getValue();
-//            try {
-//                AnalizadorWeb analizador = new AnalizadorImagenes(url);
-//                analizador.conectar();
-//                analizador.start();
-//            } catch (Exception e) {
-//                System.err.println("Error en ANALIZAR_IMAGENES: " + e.getMessage());
-//            }
-//        }
-//    },
-//    ANALIZAR_VIDEOS {
-//        
-//        @Override
-//        public void accion(Cliente cliente, Element eDato) {
-//            String url = eDato.getChild("url").getValue();
-//            try {
-//                AnalizadorWeb analizador = new AnalizarVideo(url);
-//                analizador.conectar();
-//                analizador.start();
-//            } catch (Exception e) {
-//                System.err.println("Error en ANALIZAR_VIDEOS: " + e.getMessage());
-//            }
-//        }
-//    },
+    },
+    /* Procesa la respuesta del servidor confirmando que el análisis fue enviado al trabajador.
+     */
     ANALIZAR_PRODUCTOS {
-        
+
         @Override
         public void accion(Cliente cliente, Element eDato) {
             String url = eDato.getChild("url").getValue();
@@ -111,7 +85,7 @@ ANALIZARURL {
         }
     },
     ANALIZAR_TODO {
-        
+
         @Override
         public void accion(Cliente cliente, Element eDato) {
             String url = eDato.getChild("url").getValue();
@@ -137,6 +111,6 @@ ANALIZARURL {
             }
         }
     };
-    
+
     public abstract void accion(Cliente cliente, Element eDato);
 }
