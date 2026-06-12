@@ -17,18 +17,21 @@ public class AnalisisTarea implements XMLConvertible {
     private String URL;
     private String estado;
     private int usuarioCreador;
+    private String descripcion;
     private int prioridad;
 
-    public AnalisisTarea(int idTarea, String URL, String estado, int usuarioCreador, int prioridad) {
+    public AnalisisTarea(int idTarea, String URL, String estado, int usuarioCreador, int prioridad, String descripcion) {
         this.idTarea = idTarea;
         this.URL = URL;
         this.estado = estado;
         this.usuarioCreador = usuarioCreador;
         this.prioridad = prioridad;
+        this.descripcion=descripcion;
     }//constructor
 
     public AnalisisTarea() {
         this.URL = "";
+        this.descripcion="";
     }
 
     //Set y get
@@ -77,13 +80,27 @@ public class AnalisisTarea implements XMLConvertible {
         return "Tarea{" + "idTarea=" + idTarea + ", URL=" + URL + ", estado=" + estado + ", usuarioCreador=" + usuarioCreador + ", prioridad=" + prioridad + '}';
     }
 
+    public String getDescripcion() {
+        return descripcion;
+    }
+
+    public void setDescripcion(String descripcion) {
+        this.descripcion = descripcion;
+    }
+    
+    
+
     @Override
     public Element toXMLElement() {
         Element eAnalisis = new Element("analisis");
         Element eURL = new Element("url");
         eURL.addContent(this.URL);
         eAnalisis.addContent(eURL);
+        Element eDescripcion = new Element("descripcion");
+        eDescripcion.addContent(this.descripcion != null ? this.descripcion : "");
+        eAnalisis.addContent(eDescripcion);
         return eAnalisis;
+        
     }
 
     @Override
@@ -100,6 +117,9 @@ public class AnalisisTarea implements XMLConvertible {
         } else {
             System.out.println("No se encontró URL en el XML");
             this.URL = "";
+        }
+        if (element.getChild("descripcion") != null) {
+            this.descripcion = element.getChild("descripcion").getValue();
         }
     }
 

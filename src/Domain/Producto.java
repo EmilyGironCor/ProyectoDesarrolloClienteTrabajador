@@ -5,12 +5,13 @@
 package Domain;
 
 import java.awt.image.BufferedImage;
+import org.jdom.Element;
 
 /**
  *
  * @author saray
  */
-public class Producto {
+public class Producto implements XMLConvertible{
     private int idProducto;
     private double precio;
     private String descripcion;
@@ -68,6 +69,44 @@ public class Producto {
     @Override
     public String toString() {
         return "Producto{" + "idProducto=" + idProducto + ", precio=" + precio + ", descripcion=" + descripcion + ", imagen=" + imagen + ", URL=" + URL + '}';
+    }
+
+    @Override
+    public Element toXMLElement() {
+        Element eProducto = new Element("producto");
+
+        eProducto.addContent(
+                new Element("idProducto")
+                        .setText(String.valueOf(idProducto)));
+
+        eProducto.addContent(
+                new Element("precio")
+                        .setText(String.valueOf(precio)));
+
+        eProducto.addContent(
+                new Element("descripcion")
+                        .setText(descripcion));
+
+        eProducto.addContent(
+                new Element("url")
+                        .setText(URL));
+
+        return eProducto;
+    }
+
+    @Override
+    public void toObject(Element element) {
+        this.idProducto = Integer.parseInt(
+                element.getChildText("idProducto"));
+
+        this.precio = Double.parseDouble(
+                element.getChildText("precio"));
+
+        this.descripcion
+                = element.getChildText("descripcion");
+
+        this.URL
+                = element.getChildText("url");
     }
     
     
