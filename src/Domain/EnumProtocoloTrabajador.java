@@ -142,102 +142,47 @@ public enum EnumProtocoloTrabajador {
         @Override
         public void accion(Cliente cliente, Element eDatos) {
             try {
+                System.out.println("🔍 Worker: BUSCAR_PRODUCTOS recibido");
 
-                Element eBusqueda = eDatos.getChild("busqueda");
+                String idTarea = eDatos.getChildText("idTarea");
+                String url = eDatos.getChildText("url");
+                String termino = eDatos.getChildText("termino");
 
-                if (eBusqueda == null) {
-                    System.out.println("No llego el nodo busqueda");
-                    return;
+                System.out.println("   ID Tarea: " + idTarea);
+                System.out.println("   URL: " + url);
+                System.out.println("   Término: " + termino);
+
+                // Analizar productos
+                AnalizarProducto analizador = new AnalizarProducto(url, termino);
+                analizador.conectar();
+                analizador.analizar();  // Usar analizar() directamente
+
+                ArrayList<Producto> productos = analizador.getProductos();
+
+                System.out.println("✅ Worker encontró " + productos.size() + " productos");
+                System.out.println("   Total en página: " + analizador.getTotalProductosEncontrados());
+                System.out.println("   Filtrados por '" + termino + "': " + analizador.getProductosFiltrados());
+
+                // Enviar resultados al servidor
+                Element eProductos = new Element("listaProductos");
+                for (Producto p : productos) {
+                    eProductos.addContent(p.toXMLElement());
                 }
 
-                String url = eBusqueda.getChildText("url");
-                String termino = eBusqueda.getChildText("termino");
-                String idTarea = eBusqueda.getChildText("idTarea");
+                Element eResultado = new Element("resultado");
+                eResultado.addContent(new Element("idTarea").setText(idTarea));
+                eResultado.addContent(eProductos);
 
-                if (url == null || termino == null || idTarea == null) {
-                    System.out.println("Faltan datos para buscar productos");
-                    return;
-                }
-
-                termino = termino.toLowerCase();
-
-                System.out.println("Buscando: " + termino + " en " + url);
-
-                org.jsoup.nodes.Document doc = org.jsoup.Jsoup.connect(url).get();
-
-                int cantidadLinks = doc.select("a[href]").size();
-                int cantidadImagenes = doc.select("img").size();
-                int cantidadVideos = doc.select(
-                        "video, iframe[src*=youtube], iframe[src*=vimeo], iframe[src*=youtu], a[href$=.mp4], a[href$=.avi], a[href$=.mov], a[href$=.mkv]"
-                ).size();
-
-                ArrayList<Producto> productosEncontrados = new ArrayList<>();
-
-                org.jsoup.select.Elements elementos = doc.select(
-                        ".product, .producto, .product-card, li.product, "
-                        + ".product-item, .product-item-info, .product-item-details, "
-                        + "[class*=product]"
-                );
-
-                
-                
-                int id = 1;
-                for (org.jsoup.nodes.Element el : elementos) {
-
-                    String textoOriginal = el.text().trim();
-                    if (textoOriginal.length() > 250) {
-                        continue;
-                    }
-                    String texto = textoOriginal.toLowerCase();
-
-                    if (texto.contains(termino)) {
-                        String nombre = el.select("h1, h2, h3, .name, .nombre, .title, [class*=name]").text();
-                        String descripcion = el.select("p, .description, .descripcion, [class*=desc]").text();
-                        String precioTexto = el.select(".price, .precio, [class*=price], [class*=precio]").text();
-                        String urlProducto = el.select("a[href]").attr("abs:href");
-
-                        double precio = 0.0;
-                        if (precioTexto != null && !precioTexto.isEmpty()) {
-                            try {
-                                precio = Double.parseDouble(precioTexto.replaceAll("[^0-9.]", ""));
-                            } catch (NumberFormatException ex) {
-                                precio = 0.0;
-                            }
-                        }
-
-                        String descripcionFinal = !nombre.isEmpty() ? nombre : descripcion;
-
-                        if (!descripcionFinal.isEmpty()) {
-                            Producto p = new Producto(
-                                    id,
-                                    precio,
-                                    descripcionFinal,
-                                    null,
-                                    urlProducto.isEmpty() ? url : urlProducto
-                            );
-
-                            productosEncontrados.add(p);
-                            id++;
-                        }
-                    }
-                }
-
-                Element eListaProductos = new Element("listaProductos");
-                eListaProductos.addContent(new Element("idTarea").setText(idTarea));
-
-                eListaProductos.addContent(new Element("totalEnlaces").setText(String.valueOf(cantidadLinks)));
-                eListaProductos.addContent(new Element("totalImagenes").setText(String.valueOf(cantidadImagenes)));
-                eListaProductos.addContent(new Element("totalVideos").setText(String.valueOf(cantidadVideos)));
-
-                for (Producto p : productosEncontrados) {
-                    eListaProductos.addContent(p.toXMLElement());
-                }
-
-                DataProtocolo dp = new DataProtocolo("GUARDAR_PRODUCTOS", eListaProductos);
+                DataProtocolo dp = new DataProtocolo("GUARDAR_PRODUCTOS", eResultado);
                 cliente.enviarDatos(Utility.GestionXML.xmlToSTring(dp.geteAccion()));
 
+                System.out.println("📤 Worker envió " + productos.size() + " productos al servidor");
+
             } catch (Exception ex) {
-                System.err.println("Error en BUSCAR_PRODUCTOS: " + ex.getMessage());
+                ex.printStackTrace();
+                Element eError = new Element("error").addContent(ex.getMessage());
+                DataProtocolo dpError = new DataProtocolo("GUARDAR_PRODUCTOS_ERROR", eError);
+                cliente.enviarDatos(Utility.GestionXML.xmlToSTring(dpError.geteAccion()));
             }
         }
     };
