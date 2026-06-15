@@ -142,26 +142,44 @@ public enum EnumProtocoloTrabajador {
         @Override
         public void accion(Cliente cliente, Element eDatos) {
             try {
-                System.out.println("🔍 Worker: BUSCAR_PRODUCTOS recibido");
+                System.out.println(" BUSCAR_PRODUCTOS recibido");
 
-                String idTarea = eDatos.getChildText("idTarea");
-                String url = eDatos.getChildText("url");
-                String termino = eDatos.getChildText("termino");
+                Element eBusqueda = eDatos.getChild("busqueda");
 
-                System.out.println("   ID Tarea: " + idTarea);
-                System.out.println("   URL: " + url);
-                System.out.println("   Término: " + termino);
+                if (eBusqueda == null) {
+                    System.out.println("Error: no llegó el nodo busqueda");
+                    return;
+                }
 
+                String idTarea = eBusqueda.getChildTextTrim("idTarea");
+                String url = eBusqueda.getChildTextTrim("url");
+                String termino = eBusqueda.getChildTextTrim("termino");
+
+                System.out.println("ID Tarea: " + idTarea);
+                System.out.println("URL: " + url);
+                System.out.println("Termino: " + termino);
+
+                if (url == null || url.isEmpty()) {
+                    System.out.println("Error: la URL llegó vacía al trabajador");
+                    return;
+                }
+
+                if (termino == null) {
+                    termino = "";
+                }
                 // Analizar productos
                 AnalizarProducto analizador = new AnalizarProducto(url, termino);
                 analizador.conectar();
-                analizador.analizar();  // Usar analizar() directamente
+                //analizador.analizar();  // Usar analizar() directamente
+
+                analizador.start();
+                analizador.join();
 
                 ArrayList<Producto> productos = analizador.getProductos();
 
-                System.out.println("✅ Worker encontró " + productos.size() + " productos");
-                System.out.println("   Total en página: " + analizador.getTotalProductosEncontrados());
-                System.out.println("   Filtrados por '" + termino + "': " + analizador.getProductosFiltrados());
+                System.out.println("Worker encontró " + productos.size() + " productos");
+                System.out.println("Total en página: " + analizador.getTotalProductosEncontrados());
+                System.out.println("Filtrados por '" + termino + "': " + analizador.getProductosFiltrados());
 
                 // Enviar resultados al servidor
                 Element eProductos = new Element("listaProductos");
@@ -176,7 +194,7 @@ public enum EnumProtocoloTrabajador {
                 DataProtocolo dp = new DataProtocolo("GUARDAR_PRODUCTOS", eResultado);
                 cliente.enviarDatos(Utility.GestionXML.xmlToSTring(dp.geteAccion()));
 
-                System.out.println("📤 Worker envió " + productos.size() + " productos al servidor");
+                
 
             } catch (Exception ex) {
                 ex.printStackTrace();
