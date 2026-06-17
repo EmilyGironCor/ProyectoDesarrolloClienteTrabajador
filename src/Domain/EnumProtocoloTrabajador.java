@@ -13,6 +13,7 @@ import org.jdom.Element;
  * @author saray
  */
 public enum EnumProtocoloTrabajador {
+
     ANALIZARURL {
         @Override
         public void accion(Cliente cliente, Element eDatos) {
@@ -24,81 +25,265 @@ public enum EnumProtocoloTrabajador {
 
             AnalisisTarea tarea = new AnalisisTarea();
             tarea.toObject(eTarea);
-            String urlObjetivo = tarea.getURL();
+
+            // Obtener datos de la tarea
             int idTarea = tarea.getIdTarea();
+            String descripcion = tarea.getDescripcion();
 
-            System.out.println("URL recibida para analizar: " + urlObjetivo);
+            // Obtener opciones de análisis
+            boolean analizarImagenes = tarea.isAnalizarImagenes();
+            boolean analizarVideos = tarea.isAnalizarVideos();
+            boolean analizarLinks = tarea.isAnalizarLinks();
+            boolean analizarProductos = tarea.isAnalizarProductos();
+            boolean analizarServicios = tarea.isAnalizarServicios();
 
-            AnalizadorLinks buscadorDeLinks = new AnalizadorLinks(urlObjetivo);
-            AnalizadorImagenes buscadorDeImagenes = new AnalizadorImagenes(urlObjetivo);
-            AnalizarVideo buscadorDeVideos = new AnalizarVideo(urlObjetivo);
+            // Obtener lista de URLs
+            ArrayList<String> urls = tarea.getUrls();
+            if (urls == null || urls.isEmpty()) {
+                // Compatibilidad con versión antigua (URL única)
+                String urlUnica = tarea.getURL();
+                if (urlUnica != null && !urlUnica.isEmpty()) {
+                    urls = new ArrayList<>();
+                    urls.add(urlUnica);
+                } else {
+                    System.out.println("No hay URLs para analizar");
+                    return;
+                }
+            }
 
-            String terminoBusqueda = tarea.getDescripcion();
+            System.out.println("=== ANALIZANDO TAREA ID: " + idTarea + " ===");
+            System.out.println("URLs a analizar: " + urls.size());
+            System.out.println("Opciones seleccionadas:");
+            System.out.println("  - Imágenes: " + analizarImagenes);
+            System.out.println("  - Videos: " + analizarVideos);
+            System.out.println("  - Enlaces: " + analizarLinks);
+            System.out.println("  - Productos: " + analizarProductos);
+            System.out.println("  - Servicios: " + analizarServicios);
 
-            AnalizarProducto buscadorDeProductos
-                    = new AnalizarProducto(urlObjetivo, terminoBusqueda);
+            // Variables para acumular resultados totales
+            int totalLinksGlobal = 0;
+            int totalImagenesGlobal = 0;
+            int totalVideosGlobal = 0;
+            int totalProductosGlobal = 0;
+            ArrayList<Producto> todosLosProductos = new ArrayList<>();
 
-            try {
-                buscadorDeLinks.conectar();
-                buscadorDeImagenes.conectar();
-                buscadorDeVideos.conectar();
-                buscadorDeProductos.conectar();
+            // Analizar cada URL
+            for (String url : urls) {
+                System.out.println("\n--- Analizando URL: " + url + " ---");
 
-                buscadorDeLinks.start();
-                buscadorDeImagenes.start();
-                buscadorDeVideos.start();
-                buscadorDeProductos.start();
+                try {
+                    // Crear analizadores según las opciones seleccionadas
+                    AnalizadorLinks analizadorLinks = null;
+                    AnalizadorImagenes analizadorImagenes = null;
+                    AnalizarVideo analizadorVideos = null;
+                    AnalizarProducto analizadorProductos = null;
 
-                buscadorDeLinks.join();
-                buscadorDeImagenes.join();
-                buscadorDeVideos.join();
-                buscadorDeProductos.join();
+                    // Solo crear y analizar si la opción está activada
+                    if (analizarLinks) {
+                        analizadorLinks = new AnalizadorLinks(url);
+                        analizadorLinks.conectar();
+                        analizadorLinks.start();
+                    }
 
-                int links = buscadorDeLinks.getCantidadDeLinks();
-                int imagenes = buscadorDeImagenes.getCantidadDeImagenes();
-                int videos = buscadorDeVideos.getCantidadDeVideos();
-                int productos = buscadorDeProductos.getCantidadProductos();
+                    if (analizarImagenes) {
+                        analizadorImagenes = new AnalizadorImagenes(url);
+                        analizadorImagenes.conectar();
+                        analizadorImagenes.start();
+                    }
 
-                System.out.println("Links: " + links + " | Imágenes: " + imagenes + " | Videos: " + videos + " | Productos: " + productos);
+                    if (analizarVideos) {
+                        analizadorVideos = new AnalizarVideo(url);
+                        analizadorVideos.conectar();
+                        analizadorVideos.start();
+                    }
 
-                Element eDato = new Element("resultado");
-                eDato.addContent(new Element("idTarea").setText(String.valueOf(idTarea)));
-                eDato.addContent(new Element("totalEnlaces").setText(String.valueOf(links)));
-                eDato.addContent(new Element("totalImagenes").setText(String.valueOf(imagenes)));
-                eDato.addContent(new Element("totalVideos").setText(String.valueOf(videos)));
-                eDato.addContent(new Element("totalProductos").setText(String.valueOf(productos)));
+                    if (analizarProductos || analizarServicios) {
+                        String terminoBusqueda = analizarProductos ? descripcion : "";
+                        analizadorProductos = new AnalizarProducto(url, terminoBusqueda);
+                        analizadorProductos.conectar();
+                        analizadorProductos.start();
+                    }
 
-                DataProtocolo protocolo = new DataProtocolo("GUARDAR_RESULTADO", eDato);
-                String xml = GestionXML.xmlToSTring(protocolo.geteAccion());
-                cliente.enviarDatos(xml);
+                    // Esperar que terminen los hilos creados
+                    if (analizadorLinks != null) {
+                        analizadorLinks.join();
+                        totalLinksGlobal += analizadorLinks.getCantidadDeLinks();
+                        System.out.println("  Enlaces encontrados: " + analizadorLinks.getCantidadDeLinks());
+                    }
 
-                //aqui
+                    if (analizadorImagenes != null) {
+                        analizadorImagenes.join();
+                        totalImagenesGlobal += analizadorImagenes.getCantidadDeImagenes();
+                        System.out.println("  Imágenes encontradas: " + analizadorImagenes.getCantidadDeImagenes());
+                    }
+
+                    if (analizadorVideos != null) {
+                        analizadorVideos.join();
+                        totalVideosGlobal += analizadorVideos.getCantidadDeVideos();
+                        System.out.println("  Videos encontrados: " + analizadorVideos.getCantidadDeVideos());
+                    }
+
+                    if (analizadorProductos != null) {
+                        analizadorProductos.join();
+                        int productosEncontrados = analizadorProductos.getCantidadProductos();
+                        totalProductosGlobal += productosEncontrados;
+                        todosLosProductos.addAll(analizadorProductos.getProductos());
+                        System.out.println("  Productos encontrados: " + productosEncontrados);
+                    }
+
+                } catch (Exception e) {
+                    System.err.println("Error analizando URL " + url + ": " + e.getMessage());
+                }
+            }
+
+            // Mostrar resumen total
+            System.out.println("\n=== RESUMEN TOTAL PARA TAREA " + idTarea + " ===");
+            System.out.println("Total URLs analizadas: " + urls.size());
+            System.out.println("Total enlaces: " + totalLinksGlobal);
+            System.out.println("Total imágenes: " + totalImagenesGlobal);
+            System.out.println("Total videos: " + totalVideosGlobal);
+            System.out.println("Total productos: " + totalProductosGlobal);
+
+            // Enviar resultado al servidor
+            Element eDato = new Element("resultado");
+            eDato.addContent(new Element("idTarea").setText(String.valueOf(idTarea)));
+            eDato.addContent(new Element("totalEnlaces").setText(String.valueOf(totalLinksGlobal)));
+            eDato.addContent(new Element("totalImagenes").setText(String.valueOf(totalImagenesGlobal)));
+            eDato.addContent(new Element("totalVideos").setText(String.valueOf(totalVideosGlobal)));
+            eDato.addContent(new Element("totalProductos").setText(String.valueOf(totalProductosGlobal)));
+
+            DataProtocolo protocolo = new DataProtocolo("GUARDAR_RESULTADO", eDato);
+            String xml = GestionXML.xmlToSTring(protocolo.geteAccion());
+            cliente.enviarDatos(xml);
+
+            // Enviar lista de productos encontrados
+            if (!todosLosProductos.isEmpty()) {
                 Element eListaProductos = new Element("listaProductos");
-                eListaProductos.addContent(
-                        new Element("idTarea").setText(String.valueOf(idTarea))
-                );
+                eListaProductos.addContent(new Element("idTarea").setText(String.valueOf(idTarea)));
 
-                for (Producto p : buscadorDeProductos.getProductos()) {
+                int idProducto = 1;
+                for (Producto p : todosLosProductos) {
+                    p.setIdProducto(idProducto++);
                     eListaProductos.addContent(p.toXMLElement());
                 }
 
-                DataProtocolo protocoloProductos
-                        = new DataProtocolo("GUARDAR_PRODUCTOS", eListaProductos);
-
-                String xmlProductos
-                        = GestionXML.xmlToSTring(protocoloProductos.geteAccion());
-
+                DataProtocolo protocoloProductos = new DataProtocolo("GUARDAR_PRODUCTOS", eListaProductos);
+                String xmlProductos = GestionXML.xmlToSTring(protocoloProductos.geteAccion());
                 cliente.enviarDatos(xmlProductos);
-
-            } catch (Exception e) {
-                System.err.println("Error durante el escaneo: " + e.getMessage());
+                System.out.println("✅ " + todosLosProductos.size() + " productos enviados al servidor");
             }
         }
     },
+    // NUEVO: Procesa análisis completo con opciones específicas
+   ANALIZAR_URL_COMPLETO {
+    @Override
+    public void accion(Cliente cliente, Element eDatos) {
+        AnalisisTarea tarea = new AnalisisTarea();
+        tarea.toObject(eDatos);
+
+        int idTarea = tarea.getIdTarea();
+        String terminoBusqueda = tarea.getDescripcion();
+
+        boolean analizarImagenes = tarea.isAnalizarImagenes();
+        boolean analizarVideos = tarea.isAnalizarVideos();
+        boolean analizarLinks = tarea.isAnalizarLinks();
+        boolean analizarProductos = tarea.isAnalizarProductos();
+
+      
+        ArrayList<String> urls = tarea.getUrls();
+        if (urls == null || urls.isEmpty()) {
+            String urlUnica = tarea.getURL();
+            if (urlUnica != null && !urlUnica.isEmpty()) {
+                urls = new ArrayList<>();
+                urls.add(urlUnica);
+            } else {
+                System.out.println("No hay URLs para analizar");
+                return;
+            }
+        }
+
+        System.out.println("=== ANALIZANDO " + urls.size() + " URL(s) PARA TAREA " + idTarea + " ===");
+
+        
+        for (String url : urls) {
+            System.out.println("\n--- Analizando: " + url + " ---");
+
+            int totalImagenes = 0;
+            int totalVideos = 0;
+            int totalLinks = 0;
+            ArrayList<Producto> productos = new ArrayList<>();
+
+            try {
+                if (analizarLinks) {
+                    AnalizadorLinks analizadorLinks = new AnalizadorLinks(url);
+                    analizadorLinks.conectar();
+                    analizadorLinks.start();
+                    analizadorLinks.join();
+                    totalLinks = analizadorLinks.getCantidadDeLinks();
+                    System.out.println("Enlaces encontrados: " + totalLinks);
+                }
+
+                if (analizarImagenes) {
+                    AnalizadorImagenes analizadorImagenes = new AnalizadorImagenes(url);
+                    analizadorImagenes.conectar();
+                    analizadorImagenes.start();
+                    analizadorImagenes.join();
+                    totalImagenes = analizadorImagenes.getCantidadDeImagenes();
+                    System.out.println("Imágenes encontradas: " + totalImagenes);
+                }
+
+                if (analizarVideos) {
+                    AnalizarVideo analizadorVideos = new AnalizarVideo(url);
+                    analizadorVideos.conectar();
+                    analizadorVideos.start();
+                    analizadorVideos.join();
+                    totalVideos = analizadorVideos.getCantidadDeVideos();
+                    System.out.println("Videos encontrados: " + totalVideos);
+                }
+
+                if (analizarProductos) {
+                    AnalizarProducto analizadorProductos = new AnalizarProducto(url, terminoBusqueda);
+                    analizadorProductos.conectar();
+                    analizadorProductos.start();
+                    analizadorProductos.join();
+                    productos = analizadorProductos.getProductos();
+                    System.out.println("Productos encontrados: " + productos.size());
+                }
+
+                // Enviar resultado de ESTA url específica al servidor
+                Element eResultado = new Element("resultado");
+                eResultado.addContent(new Element("idTarea").setText(String.valueOf(idTarea)));
+                eResultado.addContent(new Element("url").setText(url));
+                eResultado.addContent(new Element("totalEnlaces").setText(String.valueOf(totalLinks)));
+                eResultado.addContent(new Element("totalImagenes").setText(String.valueOf(totalImagenes)));
+                eResultado.addContent(new Element("totalVideos").setText(String.valueOf(totalVideos)));
+                eResultado.addContent(new Element("totalProductos").setText(String.valueOf(productos.size())));
+
+                DataProtocolo dp = new DataProtocolo("GUARDAR_RESULTADO_URL", eResultado);
+                cliente.enviarDatos(Utility.GestionXML.xmlToSTring(dp.geteAccion()));
+
+                // Enviar productos de ESTA url
+                if (!productos.isEmpty()) {
+                    Element eProductos = new Element("listaProductos");
+                    eProductos.addContent(new Element("idTarea").setText(String.valueOf(idTarea)));
+                    for (Producto p : productos) {
+                        eProductos.addContent(p.toXMLElement());
+                    }
+
+                    DataProtocolo dpProductos = new DataProtocolo("GUARDAR_PRODUCTOS", eProductos);
+                    cliente.enviarDatos(Utility.GestionXML.xmlToSTring(dpProductos.geteAccion()));
+                }
+
+            } catch (Exception e) {
+                System.err.println("Error analizando URL " + url + ": " + e.getMessage());
+                e.printStackTrace();
+            }
+        } // fin del for de URLs
+    }
+},
     /* Procesa la respuesta del servidor confirmando que el análisis fue enviado al trabajador.
      */
     ANALIZAR_PRODUCTOS {
-
         @Override
         public void accion(Cliente cliente, Element eDato) {
             String url = eDato.getChild("url").getValue();
@@ -112,12 +297,10 @@ public enum EnumProtocoloTrabajador {
         }
     },
     ANALIZAR_TODO {
-
         @Override
         public void accion(Cliente cliente, Element eDato) {
             String url = eDato.getChild("url").getValue();
             try {
-                // Lanza todos en paralelo, cada uno su hilo
                 AnalizadorWeb links = new AnalizadorLinks(url);
                 AnalizadorWeb imagenes = new AnalizadorImagenes(url);
                 AnalizadorWeb videos = new AnalizarVideo(url);
@@ -167,11 +350,9 @@ public enum EnumProtocoloTrabajador {
                 if (termino == null) {
                     termino = "";
                 }
-                // Analizar productos
+
                 AnalizarProducto analizador = new AnalizarProducto(url, termino);
                 analizador.conectar();
-                //analizador.analizar();  // Usar analizar() directamente
-
                 analizador.start();
                 analizador.join();
 
@@ -181,7 +362,6 @@ public enum EnumProtocoloTrabajador {
                 System.out.println("Total en página: " + analizador.getTotalProductosEncontrados());
                 System.out.println("Filtrados por '" + termino + "': " + analizador.getProductosFiltrados());
 
-                // Enviar resultados al servidor
                 Element eProductos = new Element("listaProductos");
                 for (Producto p : productos) {
                     eProductos.addContent(p.toXMLElement());
@@ -193,8 +373,6 @@ public enum EnumProtocoloTrabajador {
 
                 DataProtocolo dp = new DataProtocolo("GUARDAR_PRODUCTOS", eResultado);
                 cliente.enviarDatos(Utility.GestionXML.xmlToSTring(dp.geteAccion()));
-
-                
 
             } catch (Exception ex) {
                 ex.printStackTrace();

@@ -21,7 +21,11 @@ public abstract class AnalizadorWeb extends Thread{
 
   
     public void conectar() throws IOException {
-        this.documento = Jsoup.connect(this.url).get();
+        this.documento = Jsoup.connect(this.url)
+            .userAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+            .timeout(15000)
+            .followRedirects(true)
+            .get();
     }
 
 
