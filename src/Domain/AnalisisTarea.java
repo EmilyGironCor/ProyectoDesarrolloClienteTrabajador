@@ -200,6 +200,8 @@ public class AnalisisTarea implements XMLConvertible {
     public void setAnalizarServicios(boolean analizarServicios) {
         this.analizarServicios = analizarServicios;
     }
+    
+    
 
     @Override
     public String toString() {

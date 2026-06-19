@@ -77,6 +77,7 @@ public enum EnumProtocoloTrabajador {
                     AnalizadorImagenes analizadorImagenes = null;
                     AnalizarVideo analizadorVideos = null;
                     AnalizarProducto analizadorProductos = null;
+                    AnalizarServicio analizadorServicios = null;
 
                     // Solo crear y analizar si la opción está activada
                     if (analizarLinks) {
@@ -96,13 +97,29 @@ public enum EnumProtocoloTrabajador {
                         analizadorVideos.conectar();
                         analizadorVideos.start();
                     }
-
-                    if (analizarProductos || analizarServicios) {
-                        String terminoBusqueda = analizarProductos ? descripcion : "";
-                        analizadorProductos = new AnalizarProducto(url, terminoBusqueda);
+                
+                    if (analizarProductos) {
+                        analizadorProductos = new AnalizarProducto(url, descripcion);
                         analizadorProductos.conectar();
                         analizadorProductos.start();
                     }
+
+                    if (analizarServicios) {
+                        analizadorServicios = new AnalizarServicio(url, descripcion);
+                        analizadorServicios.conectar();
+                        analizadorServicios.start();
+                    }
+
+//                    if (analizarProductos || analizarServicios) {
+//                        String terminoBusqueda = analizarProductos ? descripcion : "";
+//                        analizadorProductos = new AnalizarProducto(url, terminoBusqueda);
+//                        analizadorProductos.conectar();
+//                        analizadorProductos.start();
+//                    }
+
+
+
+        
 
                     // Esperar que terminen los hilos creados
                     if (analizadorLinks != null) {
@@ -130,6 +147,18 @@ public enum EnumProtocoloTrabajador {
                         todosLosProductos.addAll(analizadorProductos.getProductos());
                         System.out.println("  Productos encontrados: " + productosEncontrados);
                     }
+                    
+                    
+                    if (analizadorServicios != null) {
+    analizadorServicios.join();
+
+    int serviciosEncontrados =
+            analizadorServicios.getCantidadServicios();
+
+    System.out.println(
+            "  Servicios encontrados: "
+            + serviciosEncontrados);
+}
 
                 } catch (Exception e) {
                     System.err.println("Error analizando URL " + url + ": " + e.getMessage());
@@ -188,6 +217,7 @@ public enum EnumProtocoloTrabajador {
         boolean analizarVideos = tarea.isAnalizarVideos();
         boolean analizarLinks = tarea.isAnalizarLinks();
         boolean analizarProductos = tarea.isAnalizarProductos();
+        boolean analizarServicios = tarea.isAnalizarServicios();
 
       
         ArrayList<String> urls = tarea.getUrls();
@@ -205,80 +235,213 @@ public enum EnumProtocoloTrabajador {
         System.out.println("=== ANALIZANDO " + urls.size() + " URL(s) PARA TAREA " + idTarea + " ===");
 
         
+        
+        
+
+        // FASE 1: lanzar un hilo por URL simultáneamente
+        ArrayList<Thread> hilos = new ArrayList<>();
         for (String url : urls) {
-            System.out.println("\n--- Analizando: " + url + " ---");
+            // Copiar variables para usarlas dentro del hilo (deben ser effectively final)
+            final String urlFinal = url;
+            final int idTareaFinal = idTarea;
+            final String terminoFinal = terminoBusqueda;
+            final boolean imgFinal = analizarImagenes;
+            final boolean vidFinal = analizarVideos;
+            final boolean lnkFinal = analizarLinks;
+            final boolean prodFinal = analizarProductos;
+            final boolean servFinal = analizarServicios;
+            
 
-            int totalImagenes = 0;
-            int totalVideos = 0;
-            int totalLinks = 0;
-            ArrayList<Producto> productos = new ArrayList<>();
+            Thread hilo = new Thread(() -> {
+                System.out.println("\n--- Analizando: " + urlFinal + " ---");
 
-            try {
-                if (analizarLinks) {
-                    AnalizadorLinks analizadorLinks = new AnalizadorLinks(url);
-                    analizadorLinks.conectar();
-                    analizadorLinks.start();
-                    analizadorLinks.join();
-                    totalLinks = analizadorLinks.getCantidadDeLinks();
-                    System.out.println("Enlaces encontrados: " + totalLinks);
-                }
+                int totalImagenes = 0;
+                int totalVideos = 0;
+                int totalLinks = 0;
+                ArrayList<Producto> productos = new ArrayList<>();
 
-                if (analizarImagenes) {
-                    AnalizadorImagenes analizadorImagenes = new AnalizadorImagenes(url);
-                    analizadorImagenes.conectar();
-                    analizadorImagenes.start();
-                    analizadorImagenes.join();
-                    totalImagenes = analizadorImagenes.getCantidadDeImagenes();
-                    System.out.println("Imágenes encontradas: " + totalImagenes);
-                }
-
-                if (analizarVideos) {
-                    AnalizarVideo analizadorVideos = new AnalizarVideo(url);
-                    analizadorVideos.conectar();
-                    analizadorVideos.start();
-                    analizadorVideos.join();
-                    totalVideos = analizadorVideos.getCantidadDeVideos();
-                    System.out.println("Videos encontrados: " + totalVideos);
-                }
-
-                if (analizarProductos) {
-                    AnalizarProducto analizadorProductos = new AnalizarProducto(url, terminoBusqueda);
-                    analizadorProductos.conectar();
-                    analizadorProductos.start();
-                    analizadorProductos.join();
-                    productos = analizadorProductos.getProductos();
-                    System.out.println("Productos encontrados: " + productos.size());
-                }
-
-                // Enviar resultado de ESTA url específica al servidor
-                Element eResultado = new Element("resultado");
-                eResultado.addContent(new Element("idTarea").setText(String.valueOf(idTarea)));
-                eResultado.addContent(new Element("url").setText(url));
-                eResultado.addContent(new Element("totalEnlaces").setText(String.valueOf(totalLinks)));
-                eResultado.addContent(new Element("totalImagenes").setText(String.valueOf(totalImagenes)));
-                eResultado.addContent(new Element("totalVideos").setText(String.valueOf(totalVideos)));
-                eResultado.addContent(new Element("totalProductos").setText(String.valueOf(productos.size())));
-
-                DataProtocolo dp = new DataProtocolo("GUARDAR_RESULTADO_URL", eResultado);
-                cliente.enviarDatos(Utility.GestionXML.xmlToSTring(dp.geteAccion()));
-
-                // Enviar productos de ESTA url
-                if (!productos.isEmpty()) {
-                    Element eProductos = new Element("listaProductos");
-                    eProductos.addContent(new Element("idTarea").setText(String.valueOf(idTarea)));
-                    for (Producto p : productos) {
-                        eProductos.addContent(p.toXMLElement());
+                try {
+                    if (lnkFinal) {
+                        AnalizadorLinks analizadorLinks = new AnalizadorLinks(urlFinal);
+                        analizadorLinks.conectar();
+                        analizadorLinks.start();
+                        analizadorLinks.join();
+                        totalLinks = analizadorLinks.getCantidadDeLinks();
+                        System.out.println("  [" + urlFinal + "] Enlaces: " + totalLinks);
                     }
 
-                    DataProtocolo dpProductos = new DataProtocolo("GUARDAR_PRODUCTOS", eProductos);
-                    cliente.enviarDatos(Utility.GestionXML.xmlToSTring(dpProductos.geteAccion()));
-                }
+                    if (imgFinal) {
+                        AnalizadorImagenes analizadorImagenes = new AnalizadorImagenes(urlFinal);
+                        analizadorImagenes.conectar();
+                        analizadorImagenes.start();
+                        analizadorImagenes.join();
+                        totalImagenes = analizadorImagenes.getCantidadDeImagenes();
+                        System.out.println("  [" + urlFinal + "] Imágenes: " + totalImagenes);
+                    }
 
-            } catch (Exception e) {
-                System.err.println("Error analizando URL " + url + ": " + e.getMessage());
-                e.printStackTrace();
+                    if (vidFinal) {
+                        AnalizarVideo analizadorVideos = new AnalizarVideo(urlFinal);
+                        analizadorVideos.conectar();
+                        analizadorVideos.start();
+                        analizadorVideos.join();
+                        totalVideos = analizadorVideos.getCantidadDeVideos();
+                        System.out.println("  [" + urlFinal + "] Videos: " + totalVideos);
+                    }
+
+                    if (prodFinal) {
+                        AnalizarProducto analizadorProductos = new AnalizarProducto(urlFinal, terminoFinal);
+                        analizadorProductos.conectar();
+                        analizadorProductos.start();
+                        analizadorProductos.join();
+                        productos = analizadorProductos.getProductos();
+                        System.out.println("  [" + urlFinal + "] Productos: " + productos.size());
+                    }
+                    
+                    ArrayList<Servicio> servicios = new ArrayList<>();
+                    if (servFinal) {
+                        AnalizarServicio analizadorServicios = new AnalizarServicio(urlFinal, terminoFinal);
+                        analizadorServicios.conectar();
+                        analizadorServicios.start();
+                        analizadorServicios.join();
+                        servicios = analizadorServicios.getServicios();
+                        System.out.println("  [" + urlFinal + "] Servicios: " + servicios.size());
+                    }
+
+                    
+
+                    // Enviar resultado de esta URL al servidor
+                    Element eResultado = new Element("resultado");
+                    eResultado.addContent(new Element("idTarea").setText(String.valueOf(idTareaFinal)));
+                    eResultado.addContent(new Element("url").setText(urlFinal));
+                    eResultado.addContent(new Element("totalEnlaces").setText(String.valueOf(totalLinks)));
+                    eResultado.addContent(new Element("totalImagenes").setText(String.valueOf(totalImagenes)));
+                    eResultado.addContent(new Element("totalVideos").setText(String.valueOf(totalVideos)));
+                    eResultado.addContent(new Element("totalProductos").setText(String.valueOf(productos.size())));
+
+                    DataProtocolo dp = new DataProtocolo("GUARDAR_RESULTADO_URL", eResultado);
+                    synchronized (cliente) {
+                        cliente.enviarDatos(Utility.GestionXML.xmlToSTring(dp.geteAccion()));
+                    }
+
+                    if (!productos.isEmpty()) {
+                        Element eProductos = new Element("listaProductos");
+                        eProductos.addContent(new Element("idTarea").setText(String.valueOf(idTareaFinal)));
+                        for (Producto p : productos) {
+                            eProductos.addContent(p.toXMLElement());
+                        }
+                        DataProtocolo dpProductos = new DataProtocolo("GUARDAR_PRODUCTOS", eProductos);
+                        synchronized (cliente) {
+                            cliente.enviarDatos(Utility.GestionXML.xmlToSTring(dpProductos.geteAccion()));
+                        }
+                    }
+
+                } catch (Exception e) {
+                    System.err.println("Error analizando URL " + urlFinal + ": " + e.getMessage());
+                    e.printStackTrace();
+                }
+            });
+
+            hilos.add(hilo);
+            hilo.start();
+            System.out.println("Hilo lanzado para: " + url);
+        }
+
+        // FASE 2: esperar que todos terminen
+        for (Thread hilo : hilos) {
+            try {
+                hilo.join();
+            } catch (InterruptedException e) {
+                System.err.println("Hilo interrumpido: " + e.getMessage());
             }
-        } // fin del for de URLs
+        }
+        System.out.println("=== TAREA " + idTarea + " COMPLETADA ===");
+        
+        
+        
+//        
+//        for (String url : urls) {
+//            System.out.println("\n--- Analizando: " + url + " ---");
+//
+//            int totalImagenes = 0;
+//            int totalVideos = 0;
+//            int totalLinks = 0;
+//            ArrayList<Producto> productos = new ArrayList<>();
+//
+//            try {
+//                if (analizarLinks) {
+//                    AnalizadorLinks analizadorLinks = new AnalizadorLinks(url);
+//                    analizadorLinks.conectar();
+//                    analizadorLinks.start();
+//                    analizadorLinks.join();
+//                    totalLinks = analizadorLinks.getCantidadDeLinks();
+//                    System.out.println("Enlaces encontrados: " + totalLinks);
+//                }
+//
+//                if (analizarImagenes) {
+//                    AnalizadorImagenes analizadorImagenes = new AnalizadorImagenes(url);
+//                    analizadorImagenes.conectar();
+//                    analizadorImagenes.start();
+//                    analizadorImagenes.join();
+//                    totalImagenes = analizadorImagenes.getCantidadDeImagenes();
+//                    System.out.println("Imágenes encontradas: " + totalImagenes);
+//                }
+//
+//                if (analizarVideos) {
+//                    AnalizarVideo analizadorVideos = new AnalizarVideo(url);
+//                    analizadorVideos.conectar();
+//                    analizadorVideos.start();
+//                    analizadorVideos.join();
+//                    totalVideos = analizadorVideos.getCantidadDeVideos();
+//                    System.out.println("Videos encontrados: " + totalVideos);
+//                }
+//
+//                if (analizarProductos) {
+//                    AnalizarProducto analizadorProductos = new AnalizarProducto(url, terminoBusqueda);
+//                    analizadorProductos.conectar();
+//                    analizadorProductos.start();
+//                    analizadorProductos.join();
+//                    productos = analizadorProductos.getProductos();
+//                    System.out.println("Productos encontrados: " + productos.size());
+//                }
+//
+//                // Enviar resultado de ESTA url específica al servidor
+//                Element eResultado = new Element("resultado");
+//                eResultado.addContent(new Element("idTarea").setText(String.valueOf(idTarea)));
+//                eResultado.addContent(new Element("url").setText(url));
+//                eResultado.addContent(new Element("totalEnlaces").setText(String.valueOf(totalLinks)));
+//                eResultado.addContent(new Element("totalImagenes").setText(String.valueOf(totalImagenes)));
+//                eResultado.addContent(new Element("totalVideos").setText(String.valueOf(totalVideos)));
+//                eResultado.addContent(new Element("totalProductos").setText(String.valueOf(productos.size())));
+//
+//                DataProtocolo dp = new DataProtocolo("GUARDAR_RESULTADO_URL", eResultado);
+//                cliente.enviarDatos(Utility.GestionXML.xmlToSTring(dp.geteAccion()));
+//
+//                // Enviar productos de ESTA url
+//                if (!productos.isEmpty()) {
+//                    Element eProductos = new Element("listaProductos");
+//                    eProductos.addContent(new Element("idTarea").setText(String.valueOf(idTarea)));
+//                    for (Producto p : productos) {
+//                        eProductos.addContent(p.toXMLElement());
+//                    }
+//
+//                    DataProtocolo dpProductos = new DataProtocolo("GUARDAR_PRODUCTOS", eProductos);
+//                    cliente.enviarDatos(Utility.GestionXML.xmlToSTring(dpProductos.geteAccion()));
+//                }
+//
+//            } catch (Exception e) {
+//                System.err.println("Error analizando URL " + url + ": " + e.getMessage());
+//                e.printStackTrace();
+//            }
+//        } // fin del for de URLs
+
+
+
+
+
+
+
+
+
     }
 },
     /* Procesa la respuesta del servidor confirmando que el análisis fue enviado al trabajador.
