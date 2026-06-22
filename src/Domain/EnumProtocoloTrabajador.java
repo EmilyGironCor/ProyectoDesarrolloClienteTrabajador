@@ -65,11 +65,12 @@ public enum EnumProtocoloTrabajador {
             int totalImagenesGlobal = 0;
             int totalVideosGlobal = 0;
             int totalProductosGlobal = 0;
+            int totalServiciosGlobales = 0;
             ArrayList<Producto> todosLosProductos = new ArrayList<>();
-
+            ArrayList<Servicio> todosLosServicios = new ArrayList<>();
             // Analizar cada URL
             for (String url : urls) {
-                System.out.println("\n--- Analizando URL: " + url + " ---");
+                System.out.println("\n Analizando URL: " + url);
 
                 try {
                     // Crear analizadores según las opciones seleccionadas
@@ -97,7 +98,7 @@ public enum EnumProtocoloTrabajador {
                         analizadorVideos.conectar();
                         analizadorVideos.start();
                     }
-                
+
                     if (analizarProductos) {
                         analizadorProductos = new AnalizarProducto(url, descripcion);
                         analizadorProductos.conectar();
@@ -109,17 +110,6 @@ public enum EnumProtocoloTrabajador {
                         analizadorServicios.conectar();
                         analizadorServicios.start();
                     }
-
-//                    if (analizarProductos || analizarServicios) {
-//                        String terminoBusqueda = analizarProductos ? descripcion : "";
-//                        analizadorProductos = new AnalizarProducto(url, terminoBusqueda);
-//                        analizadorProductos.conectar();
-//                        analizadorProductos.start();
-//                    }
-
-
-
-        
 
                     // Esperar que terminen los hilos creados
                     if (analizadorLinks != null) {
@@ -147,18 +137,14 @@ public enum EnumProtocoloTrabajador {
                         todosLosProductos.addAll(analizadorProductos.getProductos());
                         System.out.println("  Productos encontrados: " + productosEncontrados);
                     }
-                    
-                    
+
                     if (analizadorServicios != null) {
-    analizadorServicios.join();
-
-    int serviciosEncontrados =
-            analizadorServicios.getCantidadServicios();
-
-    System.out.println(
-            "  Servicios encontrados: "
-            + serviciosEncontrados);
-}
+                        analizadorServicios.join();
+                        int serviciosEncontrados = analizadorServicios.getCantidadServicios();
+                        totalServiciosGlobales += serviciosEncontrados;  
+                        todosLosServicios.addAll(analizadorServicios.getServicios());  
+                        System.out.println("  Servicios encontrados: " + serviciosEncontrados);
+                    }
 
                 } catch (Exception e) {
                     System.err.println("Error analizando URL " + url + ": " + e.getMessage());
@@ -172,6 +158,7 @@ public enum EnumProtocoloTrabajador {
             System.out.println("Total imágenes: " + totalImagenesGlobal);
             System.out.println("Total videos: " + totalVideosGlobal);
             System.out.println("Total productos: " + totalProductosGlobal);
+            System.out.println("Total servicios: " + todosLosServicios);
 
             // Enviar resultado al servidor
             Element eDato = new Element("resultado");
@@ -180,7 +167,7 @@ public enum EnumProtocoloTrabajador {
             eDato.addContent(new Element("totalImagenes").setText(String.valueOf(totalImagenesGlobal)));
             eDato.addContent(new Element("totalVideos").setText(String.valueOf(totalVideosGlobal)));
             eDato.addContent(new Element("totalProductos").setText(String.valueOf(totalProductosGlobal)));
-
+            eDato.addContent(new Element("totalServicios").setText(String.valueOf(totalServiciosGlobales)));
             DataProtocolo protocolo = new DataProtocolo("GUARDAR_RESULTADO", eDato);
             String xml = GestionXML.xmlToSTring(protocolo.geteAccion());
             cliente.enviarDatos(xml);
@@ -199,165 +186,189 @@ public enum EnumProtocoloTrabajador {
                 DataProtocolo protocoloProductos = new DataProtocolo("GUARDAR_PRODUCTOS", eListaProductos);
                 String xmlProductos = GestionXML.xmlToSTring(protocoloProductos.geteAccion());
                 cliente.enviarDatos(xmlProductos);
-                System.out.println("✅ " + todosLosProductos.size() + " productos enviados al servidor");
+                System.out.println(todosLosProductos.size() + " productos enviados al servidor");
+            }
+
+            // Enviar lista de servicios encontrados
+            if (!todosLosServicios.isEmpty()) {
+                Element eListaServicios = new Element("listaServicios");
+                eListaServicios.addContent(new Element("idTarea").setText(String.valueOf(idTarea)));
+
+                int idServicio = 1;
+                for (Servicio s : todosLosServicios) {
+                    s.setIdServicio(idServicio++);
+                    eListaServicios.addContent(s.toXMLElement());
+                }
+
+                DataProtocolo protocoloServicios = new DataProtocolo("GUARDAR_SERVICIOS", eListaServicios);
+                String xmlServicios = GestionXML.xmlToSTring(protocoloServicios.geteAccion());
+                cliente.enviarDatos(xmlServicios);
+                System.out.println(todosLosServicios.size() + " servicios enviados al servidor");
             }
         }
     },
-    // NUEVO: Procesa análisis completo con opciones específicas
-   ANALIZAR_URL_COMPLETO {
-    @Override
-    public void accion(Cliente cliente, Element eDatos) {
-        AnalisisTarea tarea = new AnalisisTarea();
-        tarea.toObject(eDatos);
+    ANALIZAR_URL_COMPLETO {
+        @Override
+        public void accion(Cliente cliente, Element eDatos) {
+            AnalisisTarea tarea = new AnalisisTarea();
+            tarea.toObject(eDatos);
 
-        int idTarea = tarea.getIdTarea();
-        String terminoBusqueda = tarea.getDescripcion();
+            int idTarea = tarea.getIdTarea();
+            String terminoBusqueda = tarea.getDescripcion();
 
-        boolean analizarImagenes = tarea.isAnalizarImagenes();
-        boolean analizarVideos = tarea.isAnalizarVideos();
-        boolean analizarLinks = tarea.isAnalizarLinks();
-        boolean analizarProductos = tarea.isAnalizarProductos();
-        boolean analizarServicios = tarea.isAnalizarServicios();
+            boolean analizarImagenes = tarea.isAnalizarImagenes();
+            boolean analizarVideos = tarea.isAnalizarVideos();
+            boolean analizarLinks = tarea.isAnalizarLinks();
+            boolean analizarProductos = tarea.isAnalizarProductos();
+            boolean analizarServicios = tarea.isAnalizarServicios();
 
-      
-        ArrayList<String> urls = tarea.getUrls();
-        if (urls == null || urls.isEmpty()) {
-            String urlUnica = tarea.getURL();
-            if (urlUnica != null && !urlUnica.isEmpty()) {
-                urls = new ArrayList<>();
-                urls.add(urlUnica);
-            } else {
-                System.out.println("No hay URLs para analizar");
-                return;
-            }
-        }
-
-        System.out.println("=== ANALIZANDO " + urls.size() + " URL(s) PARA TAREA " + idTarea + " ===");
-
-        
-        
-        
-
-        // FASE 1: lanzar un hilo por URL simultáneamente
-        ArrayList<Thread> hilos = new ArrayList<>();
-        for (String url : urls) {
-            // Copiar variables para usarlas dentro del hilo (deben ser effectively final)
-            final String urlFinal = url;
-            final int idTareaFinal = idTarea;
-            final String terminoFinal = terminoBusqueda;
-            final boolean imgFinal = analizarImagenes;
-            final boolean vidFinal = analizarVideos;
-            final boolean lnkFinal = analizarLinks;
-            final boolean prodFinal = analizarProductos;
-            final boolean servFinal = analizarServicios;
-            
-
-            Thread hilo = new Thread(() -> {
-                System.out.println("\n--- Analizando: " + urlFinal + " ---");
-
-                int totalImagenes = 0;
-                int totalVideos = 0;
-                int totalLinks = 0;
-                ArrayList<Producto> productos = new ArrayList<>();
-
-                try {
-                    if (lnkFinal) {
-                        AnalizadorLinks analizadorLinks = new AnalizadorLinks(urlFinal);
-                        analizadorLinks.conectar();
-                        analizadorLinks.start();
-                        analizadorLinks.join();
-                        totalLinks = analizadorLinks.getCantidadDeLinks();
-                        System.out.println("  [" + urlFinal + "] Enlaces: " + totalLinks);
-                    }
-
-                    if (imgFinal) {
-                        AnalizadorImagenes analizadorImagenes = new AnalizadorImagenes(urlFinal);
-                        analizadorImagenes.conectar();
-                        analizadorImagenes.start();
-                        analizadorImagenes.join();
-                        totalImagenes = analizadorImagenes.getCantidadDeImagenes();
-                        System.out.println("  [" + urlFinal + "] Imágenes: " + totalImagenes);
-                    }
-
-                    if (vidFinal) {
-                        AnalizarVideo analizadorVideos = new AnalizarVideo(urlFinal);
-                        analizadorVideos.conectar();
-                        analizadorVideos.start();
-                        analizadorVideos.join();
-                        totalVideos = analizadorVideos.getCantidadDeVideos();
-                        System.out.println("  [" + urlFinal + "] Videos: " + totalVideos);
-                    }
-
-                    if (prodFinal) {
-                        AnalizarProducto analizadorProductos = new AnalizarProducto(urlFinal, terminoFinal);
-                        analizadorProductos.conectar();
-                        analizadorProductos.start();
-                        analizadorProductos.join();
-                        productos = analizadorProductos.getProductos();
-                        System.out.println("  [" + urlFinal + "] Productos: " + productos.size());
-                    }
-                    
-                    ArrayList<Servicio> servicios = new ArrayList<>();
-                    if (servFinal) {
-                        AnalizarServicio analizadorServicios = new AnalizarServicio(urlFinal, terminoFinal);
-                        analizadorServicios.conectar();
-                        analizadorServicios.start();
-                        analizadorServicios.join();
-                        servicios = analizadorServicios.getServicios();
-                        System.out.println("  [" + urlFinal + "] Servicios: " + servicios.size());
-                    }
-
-                    
-
-                    // Enviar resultado de esta URL al servidor
-                    Element eResultado = new Element("resultado");
-                    eResultado.addContent(new Element("idTarea").setText(String.valueOf(idTareaFinal)));
-                    eResultado.addContent(new Element("url").setText(urlFinal));
-                    eResultado.addContent(new Element("totalEnlaces").setText(String.valueOf(totalLinks)));
-                    eResultado.addContent(new Element("totalImagenes").setText(String.valueOf(totalImagenes)));
-                    eResultado.addContent(new Element("totalVideos").setText(String.valueOf(totalVideos)));
-                    eResultado.addContent(new Element("totalProductos").setText(String.valueOf(productos.size())));
-
-                    DataProtocolo dp = new DataProtocolo("GUARDAR_RESULTADO_URL", eResultado);
-                    synchronized (cliente) {
-                        cliente.enviarDatos(Utility.GestionXML.xmlToSTring(dp.geteAccion()));
-                    }
-
-                    if (!productos.isEmpty()) {
-                        Element eProductos = new Element("listaProductos");
-                        eProductos.addContent(new Element("idTarea").setText(String.valueOf(idTareaFinal)));
-                        for (Producto p : productos) {
-                            eProductos.addContent(p.toXMLElement());
-                        }
-                        DataProtocolo dpProductos = new DataProtocolo("GUARDAR_PRODUCTOS", eProductos);
-                        synchronized (cliente) {
-                            cliente.enviarDatos(Utility.GestionXML.xmlToSTring(dpProductos.geteAccion()));
-                        }
-                    }
-
-                } catch (Exception e) {
-                    System.err.println("Error analizando URL " + urlFinal + ": " + e.getMessage());
-                    e.printStackTrace();
+            ArrayList<String> urls = tarea.getUrls();
+            if (urls == null || urls.isEmpty()) {
+                String urlUnica = tarea.getURL();
+                if (urlUnica != null && !urlUnica.isEmpty()) {
+                    urls = new ArrayList<>();
+                    urls.add(urlUnica);
+                } else {
+                    System.out.println("No hay URLs para analizar");
+                    return;
                 }
-            });
-
-            hilos.add(hilo);
-            hilo.start();
-            System.out.println("Hilo lanzado para: " + url);
-        }
-
-        // FASE 2: esperar que todos terminen
-        for (Thread hilo : hilos) {
-            try {
-                hilo.join();
-            } catch (InterruptedException e) {
-                System.err.println("Hilo interrumpido: " + e.getMessage());
             }
-        }
-        System.out.println("=== TAREA " + idTarea + " COMPLETADA ===");
-        
-        
-        
+
+            System.out.println("=== ANALIZANDO " + urls.size() + " URL(s) PARA TAREA " + idTarea + " ===");
+
+            // FASE 1: lanzar un hilo por URL simultáneamente
+            ArrayList<Thread> hilos = new ArrayList<>();
+            for (String url : urls) {
+                // Copiar variables para usarlas dentro del hilo (deben ser effectively final)
+                final String urlFinal = url;
+                final int idTareaFinal = idTarea;
+                final String terminoFinal = terminoBusqueda;
+                final boolean imgFinal = analizarImagenes;
+                final boolean vidFinal = analizarVideos;
+                final boolean lnkFinal = analizarLinks;
+                final boolean prodFinal = analizarProductos;
+                final boolean servFinal = analizarServicios;
+
+                Thread hilo = new Thread(() -> {
+                    System.out.println("\n--- Analizando: " + urlFinal + " ---");
+
+                    int totalImagenes = 0;
+                    int totalVideos = 0;
+                    int totalLinks = 0;
+                    ArrayList<Producto> productos = new ArrayList<>();
+                    int totalServiciosGlobales = 0;
+                    ArrayList<Servicio> todosLosServicios = new ArrayList<>();
+                    try {
+                        if (lnkFinal) {
+                            AnalizadorLinks analizadorLinks = new AnalizadorLinks(urlFinal);
+                            analizadorLinks.conectar();
+                            analizadorLinks.start();
+                            analizadorLinks.join();
+                            totalLinks = analizadorLinks.getCantidadDeLinks();
+                            System.out.println("  [" + urlFinal + "] Enlaces: " + totalLinks);
+                        }
+
+                        if (imgFinal) {
+                            AnalizadorImagenes analizadorImagenes = new AnalizadorImagenes(urlFinal);
+                            analizadorImagenes.conectar();
+                            analizadorImagenes.start();
+                            analizadorImagenes.join();
+                            totalImagenes = analizadorImagenes.getCantidadDeImagenes();
+                            System.out.println("  [" + urlFinal + "] Imágenes: " + totalImagenes);
+                        }
+
+                        if (vidFinal) {
+                            AnalizarVideo analizadorVideos = new AnalizarVideo(urlFinal);
+                            analizadorVideos.conectar();
+                            analizadorVideos.start();
+                            analizadorVideos.join();
+                            totalVideos = analizadorVideos.getCantidadDeVideos();
+                            System.out.println("  [" + urlFinal + "] Videos: " + totalVideos);
+                        }
+
+                        if (prodFinal) {
+                            AnalizarProducto analizadorProductos = new AnalizarProducto(urlFinal, terminoFinal);
+                            analizadorProductos.conectar();
+                            analizadorProductos.start();
+                            analizadorProductos.join();
+                            productos = analizadorProductos.getProductos();
+                            System.out.println("  [" + urlFinal + "] Productos: " + productos.size());
+                        }
+
+                        ArrayList<Servicio> servicios = new ArrayList<>();
+                        if (servFinal) {
+                            AnalizarServicio analizadorServicios = new AnalizarServicio(urlFinal, terminoFinal);
+                            analizadorServicios.conectar();
+                            analizadorServicios.start();
+                            analizadorServicios.join();
+                            servicios = analizadorServicios.getServicios();
+                            if (!servicios.isEmpty()) {
+                                todosLosServicios.addAll(servicios);  // ← ¡AGREGAR ESTA LÍNEA!
+                            }
+                            System.out.println("  [" + urlFinal + "] Servicios: " + servicios.size());
+                        }
+
+                        // Enviar resultado de esta URL al servidor
+                        Element eResultado = new Element("resultado");
+                        eResultado.addContent(new Element("idTarea").setText(String.valueOf(idTareaFinal)));
+                        eResultado.addContent(new Element("url").setText(urlFinal));
+                        eResultado.addContent(new Element("totalEnlaces").setText(String.valueOf(totalLinks)));
+                        eResultado.addContent(new Element("totalImagenes").setText(String.valueOf(totalImagenes)));
+                        eResultado.addContent(new Element("totalVideos").setText(String.valueOf(totalVideos)));
+                        eResultado.addContent(new Element("totalProductos").setText(String.valueOf(productos.size())));
+                        eResultado.addContent(new Element("totalServicios").setText(String.valueOf(servicios.size()))); // ✅ agregar
+
+                        DataProtocolo dp = new DataProtocolo("GUARDAR_RESULTADO_URL", eResultado);
+                        synchronized (cliente) {
+                            cliente.enviarDatos(Utility.GestionXML.xmlToSTring(dp.geteAccion()));
+                        }
+
+                        if (!productos.isEmpty()) {
+                            Element eProductos = new Element("listaProductos");
+                            eProductos.addContent(new Element("idTarea").setText(String.valueOf(idTareaFinal)));
+                            for (Producto p : productos) {
+                                eProductos.addContent(p.toXMLElement());
+                            }
+                            DataProtocolo dpProductos = new DataProtocolo("GUARDAR_PRODUCTOS", eProductos);
+                            synchronized (cliente) {
+                                cliente.enviarDatos(Utility.GestionXML.xmlToSTring(dpProductos.geteAccion()));
+                            }
+                        }
+                        if (!servicios.isEmpty()) {
+                            Element eServicios = new Element("listaServicios");
+                            eServicios.addContent(new Element("idTarea").setText(String.valueOf(idTareaFinal)));
+                            int idServicio = 1;
+                            for (Servicio s : servicios) {
+                                s.setIdServicio(idServicio++);
+                                eServicios.addContent(s.toXMLElement());
+                            }
+                            DataProtocolo dpServicios = new DataProtocolo("GUARDAR_SERVICIOS", eServicios);
+                            synchronized (cliente) {
+                                cliente.enviarDatos(Utility.GestionXML.xmlToSTring(dpServicios.geteAccion()));
+                            }
+                        }
+
+                    } catch (Exception e) {
+                        System.err.println("Error analizando URL " + urlFinal + ": " + e.getMessage());
+                        e.printStackTrace();
+                    }
+                }
+                );
+
+                hilos.add(hilo);
+                hilo.start();
+                System.out.println("Hilo lanzado para: " + url);
+            }
+            // FASE 2: esperar que todos terminen
+            for (Thread hilo : hilos) {
+                try {
+                    hilo.join();
+                } catch (InterruptedException e) {
+                    System.err.println("Hilo interrumpido: " + e.getMessage());
+                }
+            }
+            System.out.println("=== TAREA " + idTarea + " COMPLETADA ===");
+
 //        
 //        for (String url : urls) {
 //            System.out.println("\n--- Analizando: " + url + " ---");
@@ -433,22 +444,14 @@ public enum EnumProtocoloTrabajador {
 //                e.printStackTrace();
 //            }
 //        } // fin del for de URLs
-
-
-
-
-
-
-
-
-
-    }
-},
+        }
+    },
     /* Procesa la respuesta del servidor confirmando que el análisis fue enviado al trabajador.
      */
     ANALIZAR_PRODUCTOS {
         @Override
-        public void accion(Cliente cliente, Element eDato) {
+        public void accion(Cliente cliente, Element eDato
+        ) {
             String url = eDato.getChild("url").getValue();
             try {
                 AnalizadorWeb analizador = new AnalizarProducto(url);
@@ -461,7 +464,8 @@ public enum EnumProtocoloTrabajador {
     },
     ANALIZAR_TODO {
         @Override
-        public void accion(Cliente cliente, Element eDato) {
+        public void accion(Cliente cliente, Element eDato
+        ) {
             String url = eDato.getChild("url").getValue();
             try {
                 AnalizadorWeb links = new AnalizadorLinks(url);
@@ -486,7 +490,8 @@ public enum EnumProtocoloTrabajador {
     },
     BUSCAR_PRODUCTOS {
         @Override
-        public void accion(Cliente cliente, Element eDatos) {
+        public void accion(Cliente cliente, Element eDatos
+        ) {
             try {
                 System.out.println(" BUSCAR_PRODUCTOS recibido");
 

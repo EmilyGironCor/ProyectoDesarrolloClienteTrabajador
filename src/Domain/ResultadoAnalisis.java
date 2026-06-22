@@ -15,15 +15,26 @@ public class ResultadoAnalisis {
     private int totalImagenes;
     private int totalEnlaces;
     private int totalProductos;
+    private int totalServicios;
 
-    public ResultadoAnalisis(int idResultado, int idTarea, String fecha, int totalImagenes, int totalEnlaces, int totalProductos) {
+    public ResultadoAnalisis(int idResultado, int idTarea, String fecha, int totalImagenes, int totalEnlaces, int totalProductos, int totalServicios) {
         this.idResultado = idResultado;
         this.idTarea = idTarea;
         this.fecha = fecha;
         this.totalImagenes = totalImagenes;
         this.totalEnlaces = totalEnlaces;
         this.totalProductos = totalProductos;
+        this.totalServicios = totalServicios;
     }
+
+    public int getTotalServicios() {
+        return totalServicios;
+    }
+
+    public void setTotalServicios(int totalServicios) {
+        this.totalServicios = totalServicios;
+    }
+
 
     public int getIdResultado() {
         return idResultado;
