@@ -141,8 +141,8 @@ public enum EnumProtocoloTrabajador {
                     if (analizadorServicios != null) {
                         analizadorServicios.join();
                         int serviciosEncontrados = analizadorServicios.getCantidadServicios();
-                        totalServiciosGlobales += serviciosEncontrados;  
-                        todosLosServicios.addAll(analizadorServicios.getServicios());  
+                        totalServiciosGlobales += serviciosEncontrados;
+                        todosLosServicios.addAll(analizadorServicios.getServicios());
                         System.out.println("  Servicios encontrados: " + serviciosEncontrados);
                     }
 
@@ -327,6 +327,7 @@ public enum EnumProtocoloTrabajador {
                             Element eProductos = new Element("listaProductos");
                             eProductos.addContent(new Element("idTarea").setText(String.valueOf(idTareaFinal)));
                             for (Producto p : productos) {
+                                p.setIdTarea(idTareaFinal);
                                 eProductos.addContent(p.toXMLElement());
                             }
                             DataProtocolo dpProductos = new DataProtocolo("GUARDAR_PRODUCTOS", eProductos);
@@ -340,6 +341,7 @@ public enum EnumProtocoloTrabajador {
                             int idServicio = 1;
                             for (Servicio s : servicios) {
                                 s.setIdServicio(idServicio++);
+                                s.setIdTarea(idTareaFinal);
                                 eServicios.addContent(s.toXMLElement());
                             }
                             DataProtocolo dpServicios = new DataProtocolo("GUARDAR_SERVICIOS", eServicios);

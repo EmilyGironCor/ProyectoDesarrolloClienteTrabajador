@@ -51,66 +51,126 @@ public class AnalizarProducto extends AnalizadorWeb {
         return productosFiltrados;
     }
 
-    private double extraerPrecio(String texto) {
-        if (texto == null || texto.isEmpty()) {
-            return 0.0;
-        }
-
-        // Patrones para diferentes formatos de moneda
-        String[] patrones = {
-            "₡\\s*[0-9]{1,3}(?:[\\.\\,][0-9]{3})*(?:[\\.\\,][0-9]{1,2})?", // Colones ₡10,000.00
-            "\\$\\s*[0-9]{1,3}(?:[\\.\\,][0-9]{3})*(?:[\\.\\,][0-9]{1,2})?", // Dólares $10,000.00
-            "[0-9]{1,3}(?:[\\.\\,][0-9]{3})*(?:[\\.\\,][0-9]{1,2})" // Números 10,000.00
-        };
-
-        for (String patronStr : patrones) {
-            Pattern patron = Pattern.compile(patronStr);
-            Matcher matcher = patron.matcher(texto);
-            if (matcher.find()) {
-                String precioStr = matcher.group();
-                // Limpiar caracteres no numéricos excepto punto decimal
-                String limpio = precioStr.replaceAll("[^0-9.]", "");
-                // Si hay múltiples puntos, solo mantener el último (decimales)
-                if (limpio.indexOf('.') != limpio.lastIndexOf('.')) {
-                    limpio = limpio.substring(0, limpio.lastIndexOf('.'))
-                            + limpio.substring(limpio.lastIndexOf('.')).replace(".", "");
-                }
-                try {
-                    return Double.parseDouble(limpio);
-                } catch (NumberFormatException e) {
-                    // Intentar con coma como decimal
-                    limpio = precioStr.replaceAll("[^0-9,]", "").replace(",", ".");
-                    try {
-                        return Double.parseDouble(limpio);
-                    } catch (NumberFormatException ex) {
-                        continue;
-                    }
-                }
-            }
-        }
+   private double extraerPrecio(String texto) {
+    if (texto == null || texto.isEmpty()) {
         return 0.0;
     }
 
-    private double obtenerPrecioDePagina(String urlProducto) {
-        try {
-            org.jsoup.nodes.Document docProducto = org.jsoup.Jsoup.connect(urlProducto)
-                    .userAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
-                    .timeout(10000)
-                    .get();
+    // ✅ Patrones mejorados para diferentes formatos
+    String[] patrones = {
+        // Colones: ₡10,000.00, ₡10.000,00, ₡10,000, ₡10.000
+        "[¢₡]\\s*[0-9]{1,3}(?:[\\.\\,][0-9]{3})*(?:[\\.\\,][0-9]{1,2})?",
+        // Colones con espacio: ₡ 10,000.00
+        "[¢₡]\\s+[0-9]{1,3}(?:[\\.\\,][0-9]{3})*(?:[\\.\\,][0-9]{1,2})?",
+        // Dólares: $10,000.00, $10.000,00
+        "\\$\\s*[0-9]{1,3}(?:[\\.\\,][0-9]{3})*(?:[\\.\\,][0-9]{1,2})?",
+        // Números con coma o punto: 10,000.00, 10.000,00
+        "[0-9]{1,3}(?:[\\.\\,][0-9]{3})*(?:[\\.\\,][0-9]{1,2})",
+        // Números simples: 10000, 10000.00
+        "[0-9]+(?:\\.[0-9]{2})?"
+    };
 
-            String selectoresPrecio = ".price, .precio, .product-price, .special-price, .regular-price, "
-                    + "[class*=price], [class*=precio], [class*=Price], [class*=Precio], "
-                    + ".offer-price, .sale-price, .current-price, [itemprop=price], "
-                    + "span[class*=precio], div[class*=precio]";
-
-            String precioTexto = docProducto.select(selectoresPrecio).text();
-            return extraerPrecio(precioTexto);
-
-        } catch (Exception ex) {
-            System.out.println("No se pudo obtener precio desde producto: " + urlProducto);
-            return 0.0;
+    for (String patronStr : patrones) {
+        Pattern patron = Pattern.compile(patronStr);
+        Matcher matcher = patron.matcher(texto);
+        if (matcher.find()) {
+            String precioStr = matcher.group().trim();
+            System.out.println("  🔍 Precio raw encontrado: '" + precioStr + "'");
+            
+            // ✅ Limpiar: eliminar símbolos de moneda y espacios
+            String limpio = precioStr.replaceAll("[¢₡\\$\\s]", "");
+            
+            // ✅ Si tiene coma como separador de miles y punto como decimal (ej: 10,000.00)
+            if (limpio.contains(",") && limpio.contains(".")) {
+                // Si el punto es el último separador, es decimal
+                if (limpio.lastIndexOf(".") > limpio.lastIndexOf(",")) {
+                    // 10,000.00 → quitar comas
+                    limpio = limpio.replace(",", "");
+                } else {
+                    // 10.000,00 → cambiar coma por punto
+                    limpio = limpio.replace(".", "").replace(",", ".");
+                }
+            } 
+            // ✅ Si solo tiene coma (ej: 10,000) o solo punto (ej: 10.000)
+            else if (limpio.contains(",") && !limpio.contains(".")) {
+                limpio = limpio.replace(",", "");
+            } else if (limpio.contains(".")) {
+                // Si el punto está al final y no hay decimales
+                if (limpio.endsWith(".")) {
+                    limpio = limpio.substring(0, limpio.length() - 1);
+                }
+            }
+            
+            try {
+                double precio = Double.parseDouble(limpio);
+                System.out.println("  ✅ Precio extraído: " + precio);
+                return precio;
+            } catch (NumberFormatException e) {
+                System.out.println("  ⚠️ Error parseando: " + limpio);
+                continue;
+            }
         }
     }
+    
+    System.out.println("  ❌ No se encontró precio en: '" + texto + "'");
+    return 0.0;
+}
+
+private double obtenerPrecioDePagina(String urlProducto) {
+    try {
+        System.out.println("  🔍 Conectando a página de producto: " + urlProducto);
+        
+        // ✅ Mejorar configuración de conexión
+        org.jsoup.nodes.Document docProducto = org.jsoup.Jsoup.connect(urlProducto)
+                .userAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+                .timeout(30000)  // ✅ 30 segundos
+                .followRedirects(true)  // ✅ Seguir redirecciones
+                .ignoreHttpErrors(true) // ✅ Ignorar errores HTTP
+                .get();
+
+        System.out.println("  ✅ Conectado a: " + urlProducto);
+
+        // ✅ 1. Buscar en selectores específicos
+        String selectoresPrecio = ".price, .precio, .product-price, .special-price, .regular-price, "
+                + "[class*=price], [class*=precio], [class*=Price], [class*=Precio], "
+                + ".offer-price, .sale-price, .current-price, [itemprop=price], "
+                + "span[class*=precio], div[class*=precio], "
+                + ".amount, .cost, .value, .precio-final, .precio-ahora, "
+                + ".precio-oferta, .precio-normal, .product__price";
+
+        String precioTexto = docProducto.select(selectoresPrecio).text();
+        System.out.println("  🔍 Selectores de precio: '" + precioTexto + "'");
+        
+        double precio = extraerPrecio(precioTexto);
+        
+        // ✅ 2. Si no encontró precio, buscar en todo el texto del documento
+        if (precio == 0.0) {
+            String textoCompleto = docProducto.text();
+            System.out.println("  🔍 Buscando precio en todo el texto del documento");
+            precio = extraerPrecio(textoCompleto);
+        }
+        
+        // ✅ 3. Si aún no hay precio, buscar en el HTML
+        if (precio == 0.0) {
+            String htmlCompleto = docProducto.html();
+            System.out.println("  🔍 Buscando precio en HTML del documento");
+            precio = extraerPrecio(htmlCompleto);
+        }
+        
+        if (precio > 0) {
+            System.out.println("  ✅ Precio encontrado en página de producto: " + precio);
+        } else {
+            System.out.println("  ❌ No se encontró precio en: " + urlProducto);
+        }
+        
+        return precio;
+
+    } catch (Exception ex) {
+        System.out.println("  ❌ No se pudo obtener precio desde producto: " + urlProducto);
+        System.out.println("  ❌ Error: " + ex.getMessage());
+        return 0.0;
+    }
+}
 
     @Override
     protected void analizar() {
