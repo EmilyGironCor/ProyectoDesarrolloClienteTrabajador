@@ -7,8 +7,9 @@ package Domain;
 import org.jdom.Element;
 
 /**
- *
- * @author Nelson
+ * Define los métodos necesarios para convertir objetos del sistema entre su
+ * representación en Java y formato XML.
+ * @author Saray
  */
 public interface XMLConvertible {
     

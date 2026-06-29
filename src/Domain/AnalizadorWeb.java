@@ -4,14 +4,18 @@
  */
 package Domain;
 
-
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import java.io.IOException;
 
+/**
+ * Clase base para los analizadores web. Establece la conexión con una página
+ * mediante JSoup y define la estructura común del proceso de análisis.
+ * @author saray
+ */
+public abstract class AnalizadorWeb extends Thread {
 
-public abstract class AnalizadorWeb extends Thread{ 
-    protected String url; 
+    protected String url;
     protected Document documento;
 
     // Constructor
@@ -19,21 +23,25 @@ public abstract class AnalizadorWeb extends Thread{
         this.url = url;
     }
 
-  
     public void conectar() throws IOException {
         this.documento = Jsoup.connect(this.url)
-            .userAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
-            .timeout(15000)
-            .followRedirects(true)
-            .get();
+                .userAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+                .timeout(15000)
+                .followRedirects(true)
+                .get();
     }
 
+    protected abstract void analizar();
 
-    protected abstract void analizar(); 
     public abstract void run();
 
     // Getters y Setters
-    public String getUrl() { return url; }
-    public void setUrl(String url) { this.url = url; }
-    
+    public String getUrl() {
+        return url;
+    }
+
+    public void setUrl(String url) {
+        this.url = url;
+    }
+
 }

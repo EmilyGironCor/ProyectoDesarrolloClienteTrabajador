@@ -9,19 +9,19 @@ import org.jdom.Element;
 import java.util.List;
 
 /**
+ * Representa una tarea de análisis con las URLs a procesar y las opciones
+ * seleccionadas para realizar el análisis de contenido web.
  *
  * @author saray
  */
 public class AnalisisTarea implements XMLConvertible {
 
     private int idTarea;
-    private String URL;  
+    private String URL;
     private String estado;
     private int usuarioCreador;
     private String descripcion;
     private int prioridad;
-
-    // NUEVOS CAMPOS
     private ArrayList<String> urls;  // Lista de múltiples URLs
     private boolean analizarImagenes;
     private boolean analizarVideos;
@@ -59,7 +59,7 @@ public class AnalisisTarea implements XMLConvertible {
         this.analizarServicios = false;
     }
 
-    // Constructor completo con múltiples URLs y opciones
+    // Constructor completo con múltiples URLs 
     public AnalisisTarea(int idTarea, ArrayList<String> urls, String estado,
             int usuarioCreador, int prioridad, String descripcion,
             boolean analizarImagenes, boolean analizarVideos,
@@ -139,7 +139,6 @@ public class AnalisisTarea implements XMLConvertible {
         this.descripcion = descripcion;
     }
 
-    // NUEVOS GETTERS Y SETTERS
     public ArrayList<String> getUrls() {
         return urls;
     }
@@ -200,8 +199,6 @@ public class AnalisisTarea implements XMLConvertible {
     public void setAnalizarServicios(boolean analizarServicios) {
         this.analizarServicios = analizarServicios;
     }
-    
-    
 
     @Override
     public String toString() {
@@ -244,85 +241,103 @@ public class AnalisisTarea implements XMLConvertible {
         return eAnalisis;
     }
 
-  @Override
-public void toObject(Element element) {
-    // Buscar el elemento raíz
-    Element root = element.getName().equals("tarea") ? element : element.getChild("tarea");
-    if (root == null) {
-        root = element;
-    }
-
-    // Leer idTarea - con manejo de null
-    Element idTareaElem = root.getChild("idTarea");
-    if (idTareaElem != null) {
-        try {
-            this.idTarea = Integer.parseInt(idTareaElem.getValue());
-        } catch (NumberFormatException e) {
-            this.idTarea = 0;
+    @Override
+    public void toObject(Element element) {
+        // Buscar el elemento raíz
+        Element root = element.getName().equals("tarea") ? element : element.getChild("tarea");
+        if (root == null) {
+            root = element;
         }
-    }
 
-    // LEER LISTA DE URLs
-    Element eUrls = root.getChild("urls");
-    if (eUrls != null) {
-        this.urls = new ArrayList<>();
-        List<Element> listaUrls = eUrls.getChildren("url");
-        for (Element eUrl : listaUrls) {
-            String urlValue = eUrl.getValue();
-            if (urlValue != null && !urlValue.isEmpty()) {
-                this.urls.add(urlValue);
+        // Leer idTarea - con manejo de null
+        Element idTareaElem = root.getChild("idTarea");
+        if (idTareaElem != null) {
+            try {
+                this.idTarea = Integer.parseInt(idTareaElem.getValue());
+            } catch (NumberFormatException e) {
+                this.idTarea = 0;
             }
         }
-        if (!this.urls.isEmpty()) {
-            this.URL = this.urls.get(0);
-        }
-    } else {
-        // Compatibilidad con formato antiguo
-        String urlValue = null;
-        Element urlElem = root.getChild("URL");
-        if (urlElem == null) urlElem = root.getChild("url");
-        if (urlElem == null) urlElem = element.getChild("URL");
-        if (urlElem == null) urlElem = element.getChild("url");
-        
-        if (urlElem != null) {
-            urlValue = urlElem.getValue();
-        }
 
-        if (urlValue != null && !urlValue.isEmpty()) {
-            this.URL = urlValue;
+        // Leer urls
+        Element eUrls = root.getChild("urls");
+        if (eUrls != null) {
             this.urls = new ArrayList<>();
-            this.urls.add(urlValue);
+            List<Element> listaUrls = eUrls.getChildren("url");
+            for (Element eUrl : listaUrls) {
+                String urlValue = eUrl.getValue();
+                if (urlValue != null && !urlValue.isEmpty()) {
+                    this.urls.add(urlValue);
+                }
+            }
+            if (!this.urls.isEmpty()) {
+                this.URL = this.urls.get(0);
+            }
         } else {
-            System.out.println("No se encontró URL en el XML");
-            this.URL = "";
-            this.urls = new ArrayList<>();
+            // Compatibilidad con formato antiguo
+            String urlValue = null;
+            Element urlElem = root.getChild("URL");
+            if (urlElem == null) {
+                urlElem = root.getChild("url");
+            }
+            if (urlElem == null) {
+                urlElem = element.getChild("URL");
+            }
+            if (urlElem == null) {
+                urlElem = element.getChild("url");
+            }
+
+            if (urlElem != null) {
+                urlValue = urlElem.getValue();
+            }
+
+            if (urlValue != null && !urlValue.isEmpty()) {
+                this.URL = urlValue;
+                this.urls = new ArrayList<>();
+                this.urls.add(urlValue);
+            } else {
+                System.out.println("No se encontró URL en el XML");
+                this.URL = "";
+                this.urls = new ArrayList<>();
+            }
+        }
+
+        // Leer descripción
+        Element descElem = root.getChild("descripcion");
+        if (descElem == null) {
+            descElem = element.getChild("descripcion");
+        }
+        if (descElem != null) {
+            this.descripcion = descElem.getValue();
+        }
+
+        // LEER OPCIONES DE ANÁLISIS
+        Element eOpciones = root.getChild("opcionesAnalisis");
+        if (eOpciones != null) {
+            Element imgElem = eOpciones.getChild("analizarImagenes");
+            if (imgElem != null) {
+                this.analizarImagenes = Boolean.parseBoolean(imgElem.getValue());
+            }
+
+            Element vidElem = eOpciones.getChild("analizarVideos");
+            if (vidElem != null) {
+                this.analizarVideos = Boolean.parseBoolean(vidElem.getValue());
+            }
+
+            Element linkElem = eOpciones.getChild("analizarLinks");
+            if (linkElem != null) {
+                this.analizarLinks = Boolean.parseBoolean(linkElem.getValue());
+            }
+
+            Element prodElem = eOpciones.getChild("analizarProductos");
+            if (prodElem != null) {
+                this.analizarProductos = Boolean.parseBoolean(prodElem.getValue());
+            }
+
+            Element servElem = eOpciones.getChild("analizarServicios");
+            if (servElem != null) {
+                this.analizarServicios = Boolean.parseBoolean(servElem.getValue());
+            }
         }
     }
-
-    // Leer descripción
-    Element descElem = root.getChild("descripcion");
-    if (descElem == null) descElem = element.getChild("descripcion");
-    if (descElem != null) {
-        this.descripcion = descElem.getValue();
-    }
-
-    // LEER OPCIONES DE ANÁLISIS
-    Element eOpciones = root.getChild("opcionesAnalisis");
-    if (eOpciones != null) {
-        Element imgElem = eOpciones.getChild("analizarImagenes");
-        if (imgElem != null) this.analizarImagenes = Boolean.parseBoolean(imgElem.getValue());
-        
-        Element vidElem = eOpciones.getChild("analizarVideos");
-        if (vidElem != null) this.analizarVideos = Boolean.parseBoolean(vidElem.getValue());
-        
-        Element linkElem = eOpciones.getChild("analizarLinks");
-        if (linkElem != null) this.analizarLinks = Boolean.parseBoolean(linkElem.getValue());
-         
-        Element prodElem = eOpciones.getChild("analizarProductos");
-        if (prodElem != null) this.analizarProductos = Boolean.parseBoolean(prodElem.getValue());
-        
-        Element servElem = eOpciones.getChild("analizarServicios");
-        if (servElem != null) this.analizarServicios = Boolean.parseBoolean(servElem.getValue());
-    }
-}
 }

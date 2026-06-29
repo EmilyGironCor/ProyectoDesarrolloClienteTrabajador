@@ -8,10 +8,13 @@ import java.awt.image.BufferedImage;
 import org.jdom.Element;
 
 /**
+ * Representa un producto obtenido durante el análisis web y permite convertir
+ * su información entre objetos Java y formato XML.
  *
  * @author saray
  */
-public class Producto implements XMLConvertible{
+public class Producto implements XMLConvertible {
+
     private int idProducto;
     private double precio;
     private String descripcion;
@@ -108,6 +111,5 @@ public class Producto implements XMLConvertible{
         this.URL
                 = element.getChildText("url");
     }
-    
-    
+
 }

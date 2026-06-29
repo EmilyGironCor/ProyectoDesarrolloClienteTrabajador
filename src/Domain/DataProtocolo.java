@@ -7,6 +7,8 @@ package Domain;
 import org.jdom.Element;
 
 /**
+ * Construye la estructura del protocolo XML utilizada para intercambiar
+ * información entre el trabajador y el servidor.
  *
  * @author saray
  */

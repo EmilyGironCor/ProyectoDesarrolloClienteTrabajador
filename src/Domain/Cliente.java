@@ -16,6 +16,8 @@ import org.jdom.Element;
 import org.jdom.JDOMException;
 
 /**
+ * Gestiona la comunicación entre el trabajador y el servidor mediante sockets,
+ * permitiendo recibir solicitudes y enviar los resultados del análisis.
  *
  * @author Saray
  */
@@ -62,7 +64,7 @@ public class Cliente extends Thread {
 
                     enumProtocoloTrabajador.accion(this, eAccion.getChild("datos"));
                 } catch (IllegalArgumentException e) {
-                    // Esta acción no es para el trabajador, ignorarla silenciosamente
+      
                     System.out.println(" ignorando acción  " + accion);
                 }
             } catch (IOException ex) {

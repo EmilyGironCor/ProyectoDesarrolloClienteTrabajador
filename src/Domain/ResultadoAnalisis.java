@@ -5,10 +5,13 @@
 package Domain;
 
 /**
+ * Almacena el resultado generado por el análisis de una tarea, incluyendo las
+ * cantidades de imágenes, enlaces y productos encontrados.
  *
  * @author saray
  */
 public class ResultadoAnalisis {
+
     private int idResultado;
     private int idTarea;
     private String fecha;
@@ -77,5 +80,5 @@ public class ResultadoAnalisis {
     public String toString() {
         return "ResultadoAnalisis{" + "idResultado=" + idResultado + ", idTarea=" + idTarea + ", fecha=" + fecha + ", totalImagenes=" + totalImagenes + ", totalEnlaces=" + totalEnlaces + ", totalProductos=" + totalProductos + '}';
     }
-    
+
 }

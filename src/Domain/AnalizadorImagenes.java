@@ -7,7 +7,10 @@ package Domain;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
-
+/**
+ * Analiza una página web para identificar y contabilizar las imágenes
+ * presentes en su contenido.
+ */
 public class AnalizadorImagenes extends AnalizadorWeb {
 
     private int cantidadDeImagenes;
